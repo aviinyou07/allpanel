@@ -1,20 +1,21 @@
 {
-  "name": "game",
+  "name": "game-workspace",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "next": "^16.3.5",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "dev": "concurrently -n \"BACKEND,USER,ADMIN\" -c \"yellow,cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix user run dev\" \"npm --prefix admin run dev\"",
+    "dev:all": "concurrently -n \"BACKEND,USER,ADMIN\" -c \"yellow,cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix user run dev\" \"npm --prefix admin run dev\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:user": "npm --prefix user run dev",
+    "dev:admin": "npm --prefix admin run dev",
+    "build": "npm --prefix user run build && npm --prefix admin run build",
+    "build:user": "npm --prefix user run build",
+    "build:admin": "npm --prefix admin run build",
+    "setup:backend": "npm --prefix backend run setup && npm --prefix backend run seed",
+    "setup:db": "npm --prefix backend run setup && npm --prefix backend run seed"
   },
   "devDependencies": {
-    "autoprefixer": "^10.6.1",
-    "postcss": "^8.5.28",
-    "tailwindcss": "^3.4.1"
+    "concurrently": "^9.2.4"
   }
 }
