@@ -14,18 +14,29 @@ module.exports = {
       },
       colors: {
         theme: {
-          teal: '#2a9d8f',
-          dark: '#264653',
+          primary: '#3982b8',
+          blue: '#3982b8',
+          dark: '#204867',
         },
-        dck: {
-          header: '#264653',
-          search: '#3a5d6a',
-          chip: '#2a9d8f',
-          nav: '#1f3943',
-          sports: '#2a9d8f',
+        all: {
+          header: '#3982b8',
+          search: '#296894',
+          chip: '#24587d',
+          nav: '#19354d',
+          sports: '#3982b8',
           blueOdds: '#7cbcf6',
           pinkOdds: '#faa7ba',
-          cardLabel: '#264653',
+          cardLabel: '#204867',
+        },
+        dck: {
+          header: '#3982b8',
+          search: '#296894',
+          chip: '#24587d',
+          nav: '#19354d',
+          sports: '#3982b8',
+          blueOdds: '#7cbcf6',
+          pinkOdds: '#faa7ba',
+          cardLabel: '#204867',
         }
       }
     },

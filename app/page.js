@@ -60,8 +60,8 @@ function MiniCard({ rank, selected, onClick }) {
       type="button"
       onClick={onClick}
       className={`w-[26px] h-[36px] bg-white border-[1.5px] ${
-        selected ? 'border-teal-600 ring-2 ring-teal-400 bg-teal-50' : 'border-[#fbbf24]'
-      } rounded-[2px] flex flex-col items-center justify-between py-0.5 px-0.5 cursor-pointer hover:border-teal-500 active:scale-95 transition-all shadow-xs shrink-0 select-none`}
+        selected ? 'border-[#3982b8] ring-2 ring-blue-400 bg-blue-50' : 'border-[#fbbf24]'
+      } rounded-[2px] flex flex-col items-center justify-between py-0.5 px-0.5 cursor-pointer hover:border-[#3982b8] active:scale-95 transition-all shadow-xs shrink-0 select-none`}
     >
       <span className="text-[10.5px] font-black text-black leading-none">{rank}</span>
       <div className="grid grid-cols-2 gap-x-[1px] gap-y-0 leading-none text-[7.5px]">
@@ -74,37 +74,106 @@ function MiniCard({ rank, selected, onClick }) {
   );
 }
 
-function LiveOddsTable() {
-  const matches = [
+const sportMatchesData = {
+  CRICKET: [
     {
-      title: 'Super Over 2',
-      time: '',
-      hasBM: true,
-      hasE: false,
-      boxes: ['-', '-', '-', '-', '-', '-'],
-    },
-    {
-      title: 'Royal Challengers Bengaluru (e) - Delhi Capi...',
-      time: '16/09/2026 14:42:00',
+      title: 'Royal Challengers Bengaluru (e) - Delhi Capitals (e)',
+      time: '17/09/2026 14:42:00',
       hasBM: false,
       hasE: true,
-      boxes: ['-', '-', '-', '-', '-', '-'],
+      boxes: ['1.85', '1.87', '3.40', '3.50', '2.10', '2.14'],
     },
     {
       title: 'Punjab Kings (e) - Rajasthan Royals (e)',
-      time: '16/09/2026 14:42:00',
+      time: '17/09/2026 18:30:00',
       hasBM: false,
       hasE: true,
-      boxes: ['-', '-', '-', '-', '-', '-'],
+      boxes: ['1.92', '1.95', '3.20', '3.30', '1.95', '2.00'],
     },
     {
-      title: 'Kolkata Knight Riders (e) - Royal Challenger...',
-      time: '16/09/2026 14:45:00',
+      title: 'Kolkata Knight Riders (e) - Royal Challengers (e)',
+      time: '17/09/2026 20:00:00',
+      hasBM: true,
+      hasE: true,
+      boxes: ['1.76', '1.80', '4.00', '4.20', '2.22', '2.28'],
+    },
+  ],
+  FOOTBALL: [
+    {
+      title: 'Levante v Athletic Bilbao',
+      time: '17/09/2026 20:00:00',
+      hasBM: true,
+      hasE: true,
+      boxes: ['2.40', '2.44', '3.10', '3.15', '2.80', '2.86'],
+    },
+    {
+      title: 'Arsenal v Chelsea',
+      time: '17/09/2026 21:45:00',
+      hasBM: true,
+      hasE: true,
+      boxes: ['1.75', '1.78', '3.80', '3.90', '4.20', '4.30'],
+    },
+    {
+      title: 'Real Madrid v Barcelona',
+      time: '18/09/2026 00:30:00',
+      hasBM: true,
+      hasE: true,
+      boxes: ['2.05', '2.10', '3.50', '3.60', '3.20', '3.30'],
+    },
+  ],
+  TENNIS: [
+    {
+      title: 'Carlos Alcaraz v Novak Djokovic',
+      time: '17/09/2026 16:00:00',
+      hasBM: true,
+      hasE: false,
+      boxes: ['1.68', '1.72', '-', '-', '2.20', '2.26'],
+    },
+    {
+      title: 'Jannik Sinner v Daniil Medvedev',
+      time: '17/09/2026 19:30:00',
       hasBM: false,
       hasE: true,
-      boxes: ['-', '-', '-', '-', '-', '-'],
+      boxes: ['1.80', '1.84', '-', '-', '2.05', '2.10'],
     },
-  ];
+  ],
+  'TABLE TENNIS': [
+    {
+      title: 'Fan Zhendong v Wang Chuqin',
+      time: '17/09/2026 15:00:00',
+      hasBM: true,
+      hasE: true,
+      boxes: ['1.88', '1.92', '-', '-', '1.92', '1.96'],
+    },
+    {
+      title: 'Ma Long v Tomokazu Harimoto',
+      time: '17/09/2026 17:15:00',
+      hasBM: false,
+      hasE: true,
+      boxes: ['1.65', '1.70', '-', '-', '2.30', '2.38'],
+    },
+  ],
+  HORSE: [
+    {
+      title: 'Azerbaijan Grand Cup 14:00',
+      time: '17/09/2026 14:00:00',
+      hasBM: true,
+      hasE: false,
+      boxes: ['3.20', '3.35', '4.50', '4.70', '6.00', '6.40'],
+    },
+    {
+      title: 'Ascot 15:30 Sprint Stakes',
+      time: '17/09/2026 15:30:00',
+      hasBM: true,
+      hasE: false,
+      boxes: ['2.50', '2.60', '3.75', '3.90', '5.10', '5.40'],
+    },
+  ],
+};
+
+function LiveOddsTable({ sport = 'CRICKET' }) {
+  const [selectedBox, setSelectedBox] = useState(null);
+  const matches = sportMatchesData[sport] || sportMatchesData.CRICKET;
 
   return (
     <div className="w-full bg-white flex flex-col divide-y divide-slate-200 select-none text-slate-900">
@@ -146,18 +215,29 @@ function LiveOddsTable() {
           )}
 
           <div className="grid grid-cols-6 gap-1">
-            {m.boxes.map((val, bIdx) => (
-              <div
-                key={bIdx}
-                className={`h-7 rounded-[2px] flex items-center justify-center font-bold text-[13px] cursor-pointer hover:opacity-90 active:scale-95 transition-all ${
-                  bIdx % 2 === 0
-                    ? 'bg-[#72bbf6] text-[#0f3d64]'
-                    : 'bg-[#f8a9bb] text-[#6b1b2a]'
-                }`}
-              >
-                {val}
-              </div>
-            ))}
+            {m.boxes.map((val, bIdx) => {
+              const boxId = `${idx}-${bIdx}`;
+              const isSelected = selectedBox === boxId;
+              const isBack = bIdx % 2 === 0;
+
+              return (
+                <div
+                  key={bIdx}
+                  onClick={() => val !== '-' && setSelectedBox(isSelected ? null : boxId)}
+                  className={`h-7 rounded-[2px] flex items-center justify-center font-bold text-[13px] cursor-pointer hover:opacity-90 active:scale-95 transition-all ${
+                    isSelected
+                      ? 'ring-2 ring-[#3982b8] font-black shadow-md'
+                      : ''
+                  } ${
+                    isBack
+                      ? 'bg-[#72bbf6] text-[#0f3d64]'
+                      : 'bg-[#f8a9bb] text-[#6b1b2a]'
+                  }`}
+                >
+                  {val}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -175,12 +255,12 @@ function DragonTigerScreen({ onBack }) {
   return (
     <div className="w-full min-h-screen bg-[#f0f3f6] flex flex-col relative select-none animate-fadeIn text-slate-900">
       {/* 1. Header Bar */}
-      <header className="bg-[#264653] text-white px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-black/20">
+      <header className="bg-[#3982b8] text-white px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-black/20">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onBack}
-            className="w-7 h-7 flex items-center justify-center text-white hover:text-cyan-200 transition-colors cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center text-white hover:text-blue-200 transition-colors cursor-pointer"
             aria-label="Back to Lobby"
             title="Back to Lobby"
           >
@@ -189,7 +269,7 @@ function DragonTigerScreen({ onBack }) {
             </svg>
           </button>
           <span className="font-['Bebas_Neue',sans-serif] text-[34px] tracking-[0.04em] leading-none text-white uppercase font-normal pt-0.5">
-            DCKEXCH
+            ALL
           </span>
         </div>
 
@@ -208,8 +288,8 @@ function DragonTigerScreen({ onBack }) {
       </header>
 
       {/* 2. Marquee / Search Bar */}
-      <div className="bg-[#4d6671] text-white px-2.5 py-1 flex items-center gap-2 text-[12px] border-b border-black/20">
-        <div className="flex items-center justify-center w-5 h-5 rounded bg-[#3c535d] text-white shrink-0">
+      <div className="bg-[#296894] text-white px-2.5 py-1 flex items-center gap-2 text-[12px] border-b border-black/20">
+        <div className="flex items-center justify-center w-5 h-5 rounded bg-[#1e4e70] text-white shrink-0">
           <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
             <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm.5-7H9v2H7v1h2v2h1v-2h2V9h-2z" />
           </svg>
@@ -220,15 +300,15 @@ function DragonTigerScreen({ onBack }) {
       </div>
 
       {/* 3. Sub-bar 1: 20-20 DRAGON TIGER Rules */}
-      <div className="bg-[#2a9d8f] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[13px] tracking-tight">
+      <div className="bg-[#3982b8] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[13px] tracking-tight">
         <span className="font-extrabold tracking-wide uppercase">20-20 DRAGON TIGER</span>
-        <button type="button" className="underline cursor-pointer hover:text-cyan-100 font-medium text-[12px]">
+        <button type="button" className="underline cursor-pointer hover:text-blue-100 font-medium text-[12px]">
           Rules
         </button>
       </div>
 
       {/* 4. Sub-bar 2: GAME | PLACED BET (0) Round ID */}
-      <div className="bg-[#1c3641] text-white px-3 py-1.5 flex items-center justify-between text-[11px] font-bold border-b border-black/30">
+      <div className="bg-[#19354d] text-white px-3 py-1.5 flex items-center justify-between text-[11px] font-bold border-b border-black/30">
         <div className="flex items-center gap-1.5">
           <span className="tracking-wide">GAME</span>
           <span className="text-slate-500">|</span>
@@ -254,10 +334,10 @@ function DragonTigerScreen({ onBack }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60 pointer-events-none"></div>
 
         <div className="flex items-center justify-end gap-1 p-2.5 z-10">
-          <div className="w-7 h-7 bg-[#052b24] border border-[#2ec4b6] rounded-[3px] text-[#2ec4b6] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
+          <div className="w-7 h-7 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
             0
           </div>
-          <div className="w-7 h-7 bg-[#052b24] border border-[#2ec4b6] rounded-[3px] text-[#2ec4b6] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
+          <div className="w-7 h-7 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
             7
           </div>
         </div>
@@ -278,8 +358,8 @@ function DragonTigerScreen({ onBack }) {
                 onClick={() => setSelectedBet('Dragon')}
                 className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                   selectedBet === 'Dragon'
-                    ? 'bg-teal-500 ring-2 ring-teal-300'
-                    : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                    ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                    : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
                 }`}
               >
                 Dragon
@@ -289,8 +369,8 @@ function DragonTigerScreen({ onBack }) {
                 onClick={() => setSelectedBet('Tie')}
                 className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                   selectedBet === 'Tie'
-                    ? 'bg-teal-500 ring-2 ring-teal-300'
-                    : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                    ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                    : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
                 }`}
               >
                 Tie
@@ -300,8 +380,8 @@ function DragonTigerScreen({ onBack }) {
                 onClick={() => setSelectedBet('Tiger')}
                 className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                   selectedBet === 'Tiger'
-                    ? 'bg-teal-500 ring-2 ring-teal-300'
-                    : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                    ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                    : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
                 }`}
               >
                 Tiger
@@ -309,7 +389,7 @@ function DragonTigerScreen({ onBack }) {
             </div>
           </div>
 
-          <div className="w-[2px] bg-[#2a9d8f] mx-0.5 rounded-full my-1"></div>
+          <div className="w-[2px] bg-[#3982b8] mx-0.5 rounded-full my-1"></div>
 
           <div className="w-[84px] flex flex-col">
             <div className="text-center font-black text-[13px] text-slate-900 pb-1">
@@ -320,8 +400,8 @@ function DragonTigerScreen({ onBack }) {
               onClick={() => setSelectedBet('Pair')}
               className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                 selectedBet === 'Pair'
-                  ? 'bg-teal-500 ring-2 ring-teal-300'
-                  : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                  ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                  : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
               }`}
             >
               Pair
@@ -347,8 +427,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Dragon-Even')}
             className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
               selectedBet === 'Dragon-Even'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             Even
@@ -358,8 +438,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Dragon-Odd')}
             className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
               selectedBet === 'Dragon-Odd'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             Odd
@@ -369,8 +449,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Dragon-Red')}
             className={`py-2 rounded-[2px] font-extrabold text-[15px] text-[#e74c3c] shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
               selectedBet === 'Dragon-Red'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             <span>♥</span>
@@ -381,8 +461,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Dragon-Black')}
             className={`py-2 rounded-[2px] font-extrabold text-[15px] text-black shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
               selectedBet === 'Dragon-Black'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             <span>♠</span>
@@ -408,8 +488,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Tiger-Even')}
             className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
               selectedBet === 'Tiger-Even'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             Even
@@ -419,8 +499,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Tiger-Odd')}
             className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
               selectedBet === 'Tiger-Odd'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             Odd
@@ -430,8 +510,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Tiger-Red')}
             className={`py-2 rounded-[2px] font-extrabold text-[15px] text-[#e74c3c] shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
               selectedBet === 'Tiger-Red'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             <span>♥</span>
@@ -442,8 +522,8 @@ function DragonTigerScreen({ onBack }) {
             onClick={() => setSelectedBet('Tiger-Black')}
             className={`py-2 rounded-[2px] font-extrabold text-[15px] text-black shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
               selectedBet === 'Tiger-Black'
-                ? 'bg-teal-500 ring-2 ring-teal-300'
-                : 'bg-gradient-to-b from-[#235865] to-[#1c434d] hover:brightness-110 active:scale-95'
+                ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
             }`}
           >
             <span>♠</span>
@@ -512,9 +592,9 @@ function DragonTigerScreen({ onBack }) {
 
       {/* 11. Last Result Bar */}
       <div className="w-full mt-2">
-        <div className="bg-[#2a9d8f] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[12.5px]">
+        <div className="bg-[#3982b8] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[12.5px]">
           <span className="tracking-wide">Last Result</span>
-          <button type="button" className="underline cursor-pointer hover:text-cyan-100 font-medium text-[11.5px]">
+          <button type="button" className="underline cursor-pointer hover:text-blue-100 font-medium text-[11.5px]">
             View All
           </button>
         </div>
@@ -523,7 +603,7 @@ function DragonTigerScreen({ onBack }) {
             <div
               key={rIdx}
               className={`w-6 h-6 rounded-full font-black text-[12px] text-white flex items-center justify-center shadow-xs shrink-0 ${
-                res === 'D' ? 'bg-[#9e2a2b]' : 'bg-[#2d6a4f]'
+                res === 'D' ? 'bg-[#c0392b]' : 'bg-[#2980b9]'
               }`}
             >
               {res}
@@ -534,12 +614,12 @@ function DragonTigerScreen({ onBack }) {
 
       {/* 12. Footer Section */}
       <footer className="w-full flex flex-col mt-auto">
-        <div className="bg-[#264653] text-white px-5 pt-4 pb-4 flex flex-col gap-3">
+        <div className="bg-[#204867] text-white px-5 pt-4 pb-4 flex flex-col gap-3">
           <div className="flex items-center justify-between text-[13px] font-bold tracking-tight">
-            <a href="#" className="underline hover:text-cyan-200">
+            <a href="#" className="underline hover:text-blue-200">
               Terms and Conditions
             </a>
-            <a href="#" className="underline hover:text-cyan-200">
+            <a href="#" className="underline hover:text-blue-200">
               Responsible Gaming
             </a>
           </div>
@@ -580,7 +660,7 @@ function DragonTigerScreen({ onBack }) {
           </div>
 
           <p className="text-[11px] font-medium text-slate-900 text-center tracking-tight leading-tight">
-            © Copyright 2026. All Rights Reserved. Powered by DCKEXCH.
+            © Copyright 2026. All Rights Reserved. Powered by ALL.
           </p>
         </div>
       </footer>
@@ -626,32 +706,32 @@ export default function Home() {
   return (
     <main className="min-h-screen w-full bg-[#f0f2f5] flex justify-center items-start">
       {/* 500px Mobile Screen Viewport */}
-      <div className="w-full max-w-[500px] min-h-screen bg-[#264653] flex flex-col relative shadow-[0_4px_35px_rgba(0,0,0,0.18)] overflow-hidden">
+      <div className="w-full max-w-[500px] min-h-screen bg-[#204867] flex flex-col relative shadow-[0_4px_35px_rgba(0,0,0,0.18)] overflow-hidden">
 
         {!isLoggedIn ? (
           /* ============================================================
              SCREEN 0: Exact Login Page
              ============================================================ */
-          <div className="w-full min-h-screen bg-gradient-to-b from-[#264653] via-[#2a9d8f] to-[#2a9d8f] flex flex-col justify-between select-none animate-fadeIn">
+          <div className="w-full min-h-screen bg-gradient-to-b from-[#204867] via-[#2d6b99] to-[#3982b8] flex flex-col justify-between select-none animate-fadeIn">
             {/* Top Logo & Login Card */}
             <div className="w-full flex flex-col items-center pt-8 px-5">
-              {/* DCKEXCH Logo */}
+              {/* ALL Logo */}
               <h1 className="font-['Bebas_Neue',sans-serif] text-[52px] tracking-[0.03em] text-white leading-none mb-6 text-center">
-                DCKEXCH
+                ALL
               </h1>
 
               {/* Login Card */}
               <div className="w-full max-w-[360px] bg-white rounded-md p-4 shadow-[0_6px_25px_rgba(0,0,0,0.22)] flex flex-col gap-3.5">
                 {/* Title */}
-                <div className="flex items-center justify-center gap-1.5 text-[#3a5863] font-bold text-[17px]">
+                <div className="flex items-center justify-center gap-1.5 text-[#3982b8] font-bold text-[17px]">
                   <span>Login</span>
-                  <svg className="w-4 h-4 fill-[#3a5863]" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 fill-[#3982b8]" viewBox="0 0 24 24">
                     <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
                   </svg>
                 </div>
 
                 {/* Username Input */}
-                <div className="flex items-stretch border border-slate-300 rounded overflow-hidden focus-within:border-[#264653]">
+                <div className="flex items-stretch border border-slate-300 rounded overflow-hidden focus-within:border-[#3982b8]">
                   <input
                     type="text"
                     placeholder="Username"
@@ -667,7 +747,7 @@ export default function Home() {
                 </div>
 
                 {/* Password Input */}
-                <div className="flex items-stretch border border-slate-300 rounded overflow-hidden focus-within:border-[#264653]">
+                <div className="flex items-stretch border border-slate-300 rounded overflow-hidden focus-within:border-[#3982b8]">
                   <input
                     type="password"
                     placeholder="Password"
@@ -686,7 +766,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleDemoLogin}
-                  className="w-full bg-[#264653] hover:bg-[#1f3843] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
+                  className="w-full bg-[#3982b8] hover:bg-[#2e6f9b] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
                 >
                   <span>Login</span>
                   <svg className="w-4 h-4 fill-white absolute right-3" viewBox="0 0 24 24">
@@ -698,7 +778,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleDemoLogin}
-                  className="w-full bg-[#264653] hover:bg-[#1f3843] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
+                  className="w-full bg-[#3982b8] hover:bg-[#2e6f9b] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
                 >
                   <span>Login with demo ID</span>
                   <svg className="w-4 h-4 fill-white absolute right-3" viewBox="0 0 24 24">
@@ -709,12 +789,12 @@ export default function Home() {
             </div>
 
             {/* Bottom Footer */}
-            <footer className="w-full bg-[#264653] text-white px-5 pt-3 pb-3 flex flex-col gap-1.5 mt-auto">
+            <footer className="w-full bg-[#204867] text-white px-5 pt-3 pb-3 flex flex-col gap-1.5 mt-auto">
               <div className="flex items-center justify-between text-[12px] font-bold tracking-tight">
-                <a href="#" className="underline hover:text-cyan-200">
+                <a href="#" className="underline hover:text-blue-200">
                   Terms and Conditions
                 </a>
-                <a href="#" className="underline hover:text-cyan-200">
+                <a href="#" className="underline hover:text-blue-200">
                   Responsible Gaming
                 </a>
               </div>
@@ -731,7 +811,7 @@ export default function Home() {
             {/* Top Phishing Warning Banner */}
             <aside
               role="alert"
-              className="w-full bg-[#264653] text-white px-3 py-2 flex items-center justify-between gap-2 text-[13px] leading-tight font-semibold border-b border-black/30 z-30 select-none"
+              className="w-full bg-[#204867] text-white px-3 py-2 flex items-center justify-between gap-2 text-[13px] leading-tight font-semibold border-b border-black/30 z-30 select-none"
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <span className="text-amber-400 text-sm flex-shrink-0" aria-hidden="true">
@@ -781,13 +861,13 @@ export default function Home() {
              ============================================================ */
           <DragonTigerScreen onBack={() => setActiveGameView(false)} />
         ) : (
-          /* ============================================================
-             SCREEN 2: DCKEXCH Dashboard
+           /* ============================================================
+             SCREEN 2: ALL Dashboard
              ============================================================ */
           <div className="w-full flex flex-col bg-[#f0f3f6] text-slate-900 select-none animate-fadeIn">
             
-            {/* 1. Top Header Bar using #264653 */}
-            <header className="bg-[#264653] text-white px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-black/20">
+            {/* 1. Top Header Bar using #3982b8 */}
+            <header className="bg-[#3982b8] text-white px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-black/20">
               <div className="flex items-center gap-2.5">
                 {/* 3-line Hamburger Menu */}
                 <button
@@ -799,9 +879,9 @@ export default function Home() {
                   <span className="w-[22px] h-[3.5px] bg-white rounded-[2px] block"></span>
                   <span className="w-[22px] h-[3.5px] bg-white rounded-[2px] block"></span>
                 </button>
-                {/* DCKEXCH Logo */}
+                {/* ALL Logo */}
                 <span className="font-['Bebas_Neue',sans-serif] text-[35px] tracking-[0.04em] leading-none text-white uppercase font-normal pt-0.5">
-                  DCKEXCH
+                  ALL
                 </span>
               </div>
 
@@ -813,7 +893,7 @@ export default function Home() {
                 <div
                   onClick={() => setIsLoggedIn(false)}
                   title="Logout / Return to Login"
-                  className="text-[13px] text-white font-bold flex items-center gap-1.5 cursor-pointer mt-0.5 hover:text-cyan-200 transition-colors"
+                  className="text-[13px] text-white font-bold flex items-center gap-1.5 cursor-pointer mt-0.5 hover:text-blue-200 transition-colors"
                 >
                   <span>Exp:0</span>
                   <span className="ml-1">Demo</span>
@@ -830,8 +910,8 @@ export default function Home() {
               </div>
             </header>
 
-            {/* 2. Search Bar & Filter Chips Row using #264653 & #2a9d8f */}
-            <div className="bg-[#264653] px-3 pb-2 pt-1 flex flex-col gap-1.5">
+            {/* 2. Search Bar & Filter Chips Row using #3982b8 */}
+            <div className="bg-[#3982b8] px-3 pb-2 pt-1 flex flex-col gap-1.5">
               {/* Search input with zoom-in (+) icon */}
               <div className="flex items-center gap-2.5 w-full">
                 <svg
@@ -847,15 +927,15 @@ export default function Home() {
                   <line x1="7.2" y1="10" x2="12.8" y2="10" strokeLinecap="round" strokeWidth="2" />
                 </svg>
 
-                <div className="bg-[#375a68] rounded-[2px] h-[30px] flex items-center px-2.5 w-full text-[12.5px] italic text-[#e5edf1] tracking-tight">
+                <div className="bg-[#296894] rounded-[2px] h-[30px] flex items-center px-2.5 w-full text-[12.5px] italic text-[#e5edf1] tracking-tight">
                   <span>Newly Launched Matka Market In Our Exchange</span>
                 </div>
               </div>
 
-              {/* Filter Chips: using #2a9d8f */}
+              {/* Filter Chips: using #24587d */}
               <div className="flex items-stretch gap-1.5 pt-0.5">
                 {/* Chip 1: AZERBAIJAN GRAND ... */}
-                <div className="bg-[#2a9d8f] text-white px-2.5 py-1.5 rounded-[2px] text-[12px] font-bold flex items-center gap-2 flex-1 min-w-0 cursor-pointer shadow-xs">
+                <div className="bg-[#24587d] hover:bg-[#1f4a6b] text-white px-2.5 py-1.5 rounded-[2px] text-[12px] font-bold flex items-center gap-2 flex-1 min-w-0 cursor-pointer shadow-xs transition-colors">
                   <svg className="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="5.5" cy="17.5" r="3.5" />
                     <circle cx="18.5" cy="17.5" r="3.5" />
@@ -869,7 +949,7 @@ export default function Home() {
                 </div>
 
                 {/* Chip 2: Levante v Athletic Bil... */}
-                <div className="bg-[#2a9d8f] text-white px-2.5 py-1.5 rounded-[2px] text-[12px] font-bold flex items-center gap-2 flex-1 min-w-0 cursor-pointer shadow-xs">
+                <div className="bg-[#24587d] hover:bg-[#1f4a6b] text-white px-2.5 py-1.5 rounded-[2px] text-[12px] font-bold flex items-center gap-2 flex-1 min-w-0 cursor-pointer shadow-xs transition-colors">
                   <svg className="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <circle cx="12" cy="12" r="9" />
                     <polygon points="12,8 15,10 14,14 10,14 9,10" fill="currentColor" />
@@ -889,13 +969,13 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 3. Main Game Categories Bar using #1f3a45 */}
-            <nav className="bg-[#1f3a45] text-white flex items-stretch overflow-x-auto no-scrollbar border-b border-black/30 text-[12px] font-bold uppercase tracking-tight select-none">
+            {/* 3. Main Game Categories Bar using #19354d & #3982b8 */}
+            <nav className="bg-[#19354d] text-white flex items-stretch overflow-x-auto no-scrollbar border-b border-black/30 text-[12px] font-bold uppercase tracking-tight select-none">
               {/* CRASH */}
               <div
                 onClick={() => setActiveCategory('CRASH')}
                 className={`flex items-center gap-1.5 px-3 py-2 border-r border-slate-600/40 shrink-0 cursor-pointer hover:bg-white/5 relative ${
-                  activeCategory === 'CRASH' ? 'bg-[#264653]' : ''
+                  activeCategory === 'CRASH' ? 'bg-[#3982b8]' : ''
                 }`}
               >
                 {activeCategory === 'CRASH' && (
@@ -911,7 +991,7 @@ export default function Home() {
               <div
                 onClick={() => setActiveCategory('LOTTERY')}
                 className={`flex items-center px-3 py-2 border-r border-slate-600/40 shrink-0 cursor-pointer hover:bg-white/5 relative ${
-                  activeCategory === 'LOTTERY' ? 'bg-[#264653]' : ''
+                  activeCategory === 'LOTTERY' ? 'bg-[#3982b8]' : ''
                 }`}
               >
                 {activeCategory === 'LOTTERY' && (
@@ -924,7 +1004,7 @@ export default function Home() {
               <div
                 onClick={() => setActiveCategory('SPORTS')}
                 className={`flex items-center px-3 py-2 border-r border-slate-600/40 shrink-0 cursor-pointer hover:bg-white/5 relative ${
-                  activeCategory === 'SPORTS' ? 'bg-[#264653]' : ''
+                  activeCategory === 'SPORTS' ? 'bg-[#3982b8]' : ''
                 }`}
               >
                 {activeCategory === 'SPORTS' && (
@@ -937,7 +1017,7 @@ export default function Home() {
               <div
                 onClick={() => setActiveCategory('OUR CASINO')}
                 className={`flex flex-col justify-center items-center px-2.5 py-1 border-r border-slate-600/40 shrink-0 cursor-pointer leading-[1.15] text-center relative ${
-                  activeCategory === 'OUR CASINO' ? 'bg-[#264653]' : 'hover:bg-white/5'
+                  activeCategory === 'OUR CASINO' ? 'bg-[#3982b8]' : 'hover:bg-white/5'
                 } text-[10.5px]`}
               >
                 {activeCategory === 'OUR CASINO' && (
@@ -951,7 +1031,7 @@ export default function Home() {
               <div
                 onClick={() => setActiveCategory('LIVE CASINO')}
                 className={`flex flex-col justify-center items-center px-2.5 py-1 border-r border-slate-600/40 shrink-0 cursor-pointer leading-[1.15] text-center relative ${
-                  activeCategory === 'LIVE CASINO' ? 'bg-[#264653]' : 'hover:bg-white/5'
+                  activeCategory === 'LIVE CASINO' ? 'bg-[#3982b8]' : 'hover:bg-white/5'
                 } text-[10.5px]`}
               >
                 {activeCategory === 'LIVE CASINO' && (
@@ -965,7 +1045,7 @@ export default function Home() {
               <div
                 onClick={() => setActiveCategory('SLOTS')}
                 className={`flex items-center px-3 py-2 border-r border-slate-600/40 shrink-0 cursor-pointer hover:bg-white/5 relative ${
-                  activeCategory === 'SLOTS' ? 'bg-[#264653]' : ''
+                  activeCategory === 'SLOTS' ? 'bg-[#3982b8]' : ''
                 }`}
               >
                 {activeCategory === 'SLOTS' && (
@@ -978,7 +1058,7 @@ export default function Home() {
               <div
                 onClick={() => setActiveCategory('FANTASY')}
                 className={`flex items-center px-3 py-2 shrink-0 cursor-pointer hover:bg-white/5 relative ${
-                  activeCategory === 'FANTASY' ? 'bg-[#264653]' : ''
+                  activeCategory === 'FANTASY' ? 'bg-[#3982b8]' : ''
                 }`}
               >
                 {activeCategory === 'FANTASY' && (
@@ -989,12 +1069,12 @@ export default function Home() {
             </nav>
 
             {/* ============================================================
-               WHEN 'OUR CASINO' IS ACTIVE: 2 SUB-BARS (#2a9d8f & #264653)
+               WHEN 'OUR CASINO' IS ACTIVE: 2 SUB-BARS (#3982b8 & #204867)
                ============================================================ */}
             {activeCategory === 'OUR CASINO' ? (
               <div className="flex flex-col w-full animate-fadeIn">
-                {/* 1. Sub-bar 1: using #2a9d8f */}
-                <div className="bg-[#2a9d8f] text-white flex items-center gap-5 px-3 py-2.5 overflow-x-auto no-scrollbar font-bold text-[12.5px] tracking-tight select-none border-t border-teal-500/30">
+                {/* 1. Sub-bar 1: using #3982b8 */}
+                <div className="bg-[#3982b8] text-white flex items-center gap-5 px-3 py-2.5 overflow-x-auto no-scrollbar font-bold text-[12.5px] tracking-tight select-none border-t border-blue-400/30">
                   <span
                     onClick={() => setActiveVipCasinoTab('OUR CASINO')}
                     className={`cursor-pointer shrink-0 uppercase transition-opacity ${
@@ -1029,8 +1109,8 @@ export default function Home() {
                   </span>
                 </div>
 
-                {/* 2. Sub-bar 2: using #264653 with all 18 scrollable tabs */}
-                <div className="bg-[#264653] text-white flex items-center gap-5 px-3 py-2.5 overflow-x-auto no-scrollbar font-bold text-[12.5px] tracking-tight select-none border-b border-black/30 whitespace-nowrap scroll-smooth">
+                {/* 2. Sub-bar 2: using #204867 with all 18 scrollable tabs */}
+                <div className="bg-[#204867] text-white flex items-center gap-5 px-3 py-2.5 overflow-x-auto no-scrollbar font-bold text-[12.5px] tracking-tight select-none border-b border-black/30 whitespace-nowrap scroll-smooth">
                   {casinoFilterTabs.map((tab) => (
                     <button
                       key={tab}
@@ -1052,13 +1132,13 @@ export default function Home() {
                  WHEN 'SPORTS' IS ACTIVE: SHOW SPORTS TABS & EXACT ODDS TABLE
                  ============================================================ */
               <>
-                {/* Sports Subcategories Navigation Bar: using #2a9d8f */}
-                <div className="bg-[#2a9d8f] text-white flex items-center overflow-x-auto no-scrollbar shadow-inner text-[11px] font-bold uppercase tracking-tight select-none border-t border-teal-500/30">
+                {/* Sports Subcategories Navigation Bar: using #3982b8 */}
+                <div className="bg-[#3982b8] text-white flex items-center overflow-x-auto no-scrollbar shadow-inner text-[11px] font-bold uppercase tracking-tight select-none border-t border-blue-400/30">
                   {/* CRICKET */}
                   <div
                     onClick={() => setActiveSport('CRICKET')}
                     className={`flex flex-col items-center justify-center pt-2 pb-1.5 px-4 cursor-pointer shrink-0 min-w-[76px] relative ${
-                      activeSport === 'CRICKET' ? 'bg-[#228277]' : ''
+                      activeSport === 'CRICKET' ? 'bg-[#296894]' : ''
                     }`}
                   >
                     {activeSport === 'CRICKET' && (
@@ -1075,7 +1155,7 @@ export default function Home() {
                   <div
                     onClick={() => setActiveSport('FOOTBALL')}
                     className={`flex flex-col items-center justify-center pt-2 pb-1.5 px-3.5 cursor-pointer shrink-0 min-w-[76px] relative ${
-                      activeSport === 'FOOTBALL' ? 'bg-[#228277]' : ''
+                      activeSport === 'FOOTBALL' ? 'bg-[#296894]' : ''
                     }`}
                   >
                     {activeSport === 'FOOTBALL' && (
@@ -1091,7 +1171,7 @@ export default function Home() {
                   <div
                     onClick={() => setActiveSport('TENNIS')}
                     className={`flex flex-col items-center justify-center pt-2 pb-1.5 px-3.5 cursor-pointer shrink-0 min-w-[76px] relative ${
-                      activeSport === 'TENNIS' ? 'bg-[#228277]' : ''
+                      activeSport === 'TENNIS' ? 'bg-[#296894]' : ''
                     }`}
                   >
                     {activeSport === 'TENNIS' && (
@@ -1108,7 +1188,7 @@ export default function Home() {
                   <div
                     onClick={() => setActiveSport('TABLE TENNIS')}
                     className={`flex flex-col items-center justify-center pt-2 pb-1.5 px-3 cursor-pointer shrink-0 min-w-[84px] relative ${
-                      activeSport === 'TABLE TENNIS' ? 'bg-[#228277]' : ''
+                      activeSport === 'TABLE TENNIS' ? 'bg-[#296894]' : ''
                     }`}
                   >
                     {activeSport === 'TABLE TENNIS' && (
@@ -1126,7 +1206,7 @@ export default function Home() {
                   <div
                     onClick={() => setActiveSport('HORSE')}
                     className={`flex flex-col items-center justify-center pt-2 pb-1.5 px-3.5 cursor-pointer shrink-0 min-w-[76px] relative ${
-                      activeSport === 'HORSE' ? 'bg-[#228277]' : ''
+                      activeSport === 'HORSE' ? 'bg-[#296894]' : ''
                     }`}
                   >
                     {activeSport === 'HORSE' && (
@@ -1140,12 +1220,12 @@ export default function Home() {
                 </div>
 
                 {/* Exact Odds Table Section - Pure Code */}
-                <LiveOddsTable />
+                <LiveOddsTable sport={activeSport} />
               </>
             )}
 
             {/* 6. Casino & Games Section - Filtered to ONLY dt20.jpg on DRAGON TIGER */}
-            <div className="w-full bg-[#1b323c] p-1">
+            <div className="w-full bg-[#132738] p-1">
               <div className={`grid gap-2 ${activeCasinoFilter === 'DRAGON TIGER' ? 'grid-cols-3' : 'grid-cols-4'}`}>
                 {displayedGames.map((game, idx) => (
                   <div
@@ -1153,7 +1233,7 @@ export default function Home() {
                     onClick={() => setActiveGameView(true)}
                     className="w-full relative overflow-hidden bg-black flex flex-col cursor-pointer group hover:opacity-95 transition-opacity"
                   >
-                    <div className="w-full aspect-square relative bg-[#1b323c]">
+                    <div className="w-full aspect-square relative bg-[#132738]">
                       <Image
                         src={game.src}
                         alt={game.title}
@@ -1165,8 +1245,8 @@ export default function Home() {
                         style={{ width: '100%', height: '100%' }}
                       />
                     </div>
-                    {/* Bottom label matching #264653 */}
-                    <div className="bg-[#264653] text-[#4edfd3] text-[9.5px] font-bold py-0.5 text-center uppercase tracking-tight truncate px-0.5">
+                    {/* Bottom label matching #204867 */}
+                    <div className="bg-[#204867] text-[#7ec4f8] text-[9.5px] font-bold py-0.5 text-center uppercase tracking-tight truncate px-0.5">
                       {game.title}
                     </div>
                   </div>
@@ -1174,15 +1254,15 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 7. Footer Section using #264653 */}
+            {/* 7. Footer Section using #204867 */}
             <footer className="w-full flex flex-col">
-              {/* Top Block using #264653 */}
-              <div className="bg-[#264653] text-white px-5 pt-4 pb-4 flex flex-col gap-3">
+              {/* Top Block using #204867 */}
+              <div className="bg-[#204867] text-white px-5 pt-4 pb-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between text-[13.5px] font-bold tracking-tight">
-                  <a href="#" className="underline hover:text-cyan-200">
+                  <a href="#" className="underline hover:text-blue-200">
                     Terms and Conditions
                   </a>
-                  <a href="#" className="underline hover:text-cyan-200">
+                  <a href="#" className="underline hover:text-blue-200">
                     Responsible Gaming
                   </a>
                 </div>
@@ -1227,7 +1307,7 @@ export default function Home() {
 
                 {/* Copyright Line */}
                 <p className="text-[11.5px] font-medium text-slate-900 text-center tracking-tight leading-tight">
-                  © Copyright 2026. All Rights Reserved. Powered by DCKEXCH.
+                  © Copyright 2026. All Rights Reserved. Powered by ALL.
                 </p>
 
                 {/* Small home indicator */}

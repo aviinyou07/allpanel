@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'DCKEXCH - Exchange & Sports Betting',
-  description: 'DCKEXCH Sports Exchange and Live Casino',
+  title: 'ALL - Exchange & Sports Betting',
+  description: 'ALL Sports Exchange and Live Casino',
 };
 
 export default function RootLayout({ children }) {
