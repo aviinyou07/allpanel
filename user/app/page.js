@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 
 const casinoFilterTabs = [
@@ -245,15 +245,205 @@ function LiveOddsTable({ sport = 'CRICKET' }) {
   );
 }
 
-function DragonTigerScreen({ onBack }) {
-  const [selectedBet, setSelectedBet] = useState(null);
+function parseCard(cardStr) {
+  if (!cardStr || typeof cardStr !== 'string') return null;
+  const suit = cardStr.slice(-1);
+  const rank = cardStr.slice(0, -1);
+  const isRed = (suit === '♥' || suit === '♦');
+  return { rank, suit, isRed };
+}
+
+function CasinoCard({ cardStr, side, isWinner }) {
+  const card = parseCard(cardStr);
+  if (!card) {
+    return (
+      <div className="w-11 h-16 sm:w-12 sm:h-16 rounded-[4px] bg-gradient-to-b from-blue-700 to-blue-950 border border-white/70 shadow-md flex items-center justify-center">
+        <span className="font-['Bebas_Neue',sans-serif] text-[13px] text-amber-300 font-bold tracking-wider">ALL8</span>
+      </div>
+    );
+  }
+
+  const textColor = card.isRed ? 'text-[#e53e3e]' : 'text-slate-900';
+  const winnerGlow = isWinner
+    ? (side === 'DRAGON'
+        ? 'border-[#e53e3e] ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-105'
+        : 'border-[#3b82f6] ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-105')
+    : 'border-slate-300 shadow-md';
+
+  return (
+    <div
+      className={`w-11 h-16 sm:w-12 sm:h-16 bg-white rounded-[4px] border-2 ${winnerGlow} flex flex-col justify-between p-1 select-none transition-all duration-300 transform relative`}
+    >
+      {/* Top-left rank & suit */}
+      <div className={`flex flex-col items-start leading-none ${textColor}`}>
+        <span className="text-[12px] font-black leading-none">{card.rank}</span>
+        <span className="text-[9px] leading-none mt-0.5">{card.suit}</span>
+      </div>
+
+      {/* Center Big Suit */}
+      <div className={`text-center ${textColor} text-[19px] font-black leading-none -my-1`}>
+        {card.suit}
+      </div>
+
+      {/* Bottom-right inverted */}
+      <div className={`flex flex-col items-end leading-none rotate-180 ${textColor}`}>
+        <span className="text-[12px] font-black leading-none">{card.rank}</span>
+        <span className="text-[9px] leading-none mt-0.5">{card.suit}</span>
+      </div>
+    </div>
+  );
+}
+
+function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
+  const [roundState, setRoundState] = useState({
+    roundId: '---',
+    status: 'BETTING_OPEN',
+    timeRemaining: 25,
+    bettingOpen: true,
+    dragonCard: null,
+    tigerCard: null,
+    result: null,
+    history: [],
+  });
+  const [selectedBet, setSelectedBet] = useState('Dragon');
+  const [selectedChip, setSelectedChip] = useState(50);
+  const [betLoading, setBetLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [lastRoundNotice, setLastRoundNotice] = useState(null);
+  const prevRoundStatus = useRef(null);
+
+  const showToast = (text, type = 'info') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const fetchRound = useCallback(async () => {
+    try {
+      const res = await fetch('/api/game/rounds/current');
+      if (res.ok) {
+        const data = await res.json();
+        setRoundState(data);
+
+        // When round transitions to COMPLETED, refresh wallet and show win/loss alert
+        if (prevRoundStatus.current === 'BETTING_OPEN' && data.status === 'COMPLETED') {
+          try {
+            const wRes = await fetch('/api/wallet');
+            if (wRes.ok) {
+              const wData = await wRes.json();
+              onWalletUpdate?.({
+                balance: Number(wData.balance || 0),
+                exposure: Number(wData.exposure || 0),
+                available: Number(wData.available || 0),
+              });
+            }
+          } catch {}
+
+          if (data.result) {
+            setLastRoundNotice({
+              winner: data.result,
+              dragonCard: data.dragonCard,
+              tigerCard: data.tigerCard,
+            });
+            setTimeout(() => setLastRoundNotice(null), 5000);
+          }
+        }
+        prevRoundStatus.current = data.status;
+      }
+    } catch {}
+  }, [onWalletUpdate]);
+
+  useEffect(() => {
+    fetchRound();
+    const interval = setInterval(fetchRound, 1500);
+    return () => clearInterval(interval);
+  }, [fetchRound]);
+
+  const handlePlaceBet = async (betType = selectedBet, amount = selectedChip) => {
+    if (!roundState.bettingOpen) {
+      showToast('Betting is closed for this round!', 'error');
+      return;
+    }
+    const currentBal = wallet?.balance ?? 0;
+    const currentExp = wallet?.exposure ?? 0;
+    const available = wallet?.available ?? (currentBal + currentExp);
+
+    if (available < amount) {
+      showToast(`Insufficient balance! Available: ₹${available}, Required: ₹${amount}`, 'error');
+      return;
+    }
+
+    setBetLoading(true);
+    try {
+      const res = await fetch('/api/game/bet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roundId: roundState.roundId,
+          betType: betType.toUpperCase(),
+          amount,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Failed to place bet', 'error');
+        setBetLoading(false);
+        return;
+      }
+
+      onWalletUpdate?.({
+        ...wallet,
+        balance: data.balance,
+        exposure: data.exposure,
+        available: data.available,
+      });
+
+      showToast(`✅ Bet Placed: ₹${amount} on ${betType.toUpperCase()}! (Balance: ₹${data.balance}, EXP: ${data.exposure})`, 'success');
+      setBetLoading(false);
+    } catch {
+      showToast('Network error placing bet', 'error');
+      setBetLoading(false);
+    }
+  };
 
   const cardsRow1 = ['A', '2', '3', '4', '5', '6', '7', '8', '9'];
   const cardsRow2 = ['10', 'J', 'Q', 'K'];
-  const lastResults = ['D', 'T', 'T', 'T', 'T', 'D', 'T', 'T', 'T', 'D'];
+
+  const lastResults = roundState.history && roundState.history.length > 0
+    ? roundState.history.map(h => h.result)
+    : ['D', 'T', 'T', 'T', 'T', 'D', 'T', 'T', 'T', 'D'];
+
+  const timeRemaining = roundState.timeRemaining || 0;
+  const tensDigit = Math.floor(timeRemaining / 10);
+  const onesDigit = timeRemaining % 10;
+
+  const latestHistory = roundState.history && roundState.history.length > 0 ? roundState.history[0] : null;
+  const activeDragonCard = roundState.dragonCard || latestHistory?.dragonCard || 'K♠';
+  const activeTigerCard = roundState.tigerCard || latestHistory?.tigerCard || '8♥';
+  const isRoundResolved = roundState.status === 'COMPLETED' && Boolean(roundState.result);
 
   return (
     <div className="w-full min-h-screen bg-[#f0f3f6] flex flex-col relative select-none animate-fadeIn text-slate-900">
+      {/* Toast Banner */}
+      {toastMessage && (
+        <div className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all animate-bounce ${
+          toastMessage.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
+        }`}>
+          {toastMessage.text}
+        </div>
+      )}
+
+      {/* Round Settled Victory Notice */}
+      {lastRoundNotice && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-amber-400 border-2 border-amber-500 text-black px-5 py-2.5 rounded-xl text-center shadow-2xl animate-scaleUp">
+          <p className="font-extrabold text-[13px] uppercase tracking-wider">
+            🎉 Round Result: {lastRoundNotice.winner} WON!
+          </p>
+          <p className="text-[11px] font-semibold text-amber-950 mt-0.5">
+            Cards: Dragon {lastRoundNotice.dragonCard} vs Tiger {lastRoundNotice.tigerCard}
+          </p>
+        </div>
+      )}
+
       {/* 1. Header Bar */}
       <header className="bg-[#3982b8] text-white px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-black/20">
         <div className="flex items-center gap-2">
@@ -268,18 +458,22 @@ function DragonTigerScreen({ onBack }) {
               <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
             </svg>
           </button>
-          <span className="font-['Bebas_Neue',sans-serif] text-[34px] tracking-[0.04em] leading-none text-white uppercase font-normal pt-0.5">
-            ALL
+          <span className="font-['Bebas_Neue',sans-serif] text-[32px] tracking-[0.03em] leading-none text-white uppercase font-normal pt-0.5">
+            ALLPANEL<span className="text-amber-300">8</span>
           </span>
         </div>
 
         <div className="flex flex-col items-end leading-tight text-right">
           <div className="text-[12.5px] font-bold text-white tracking-tight">
-            Balance:1500
+            Balance:{wallet?.balance ?? 0}
           </div>
-          <div className="text-[12.5px] text-white font-bold flex items-center gap-1 cursor-pointer mt-0.5">
-            <span>Exp:0</span>
-            <span className="ml-1">Demo</span>
+          <div
+            onClick={onLogout}
+            title="Click to Logout"
+            className="text-[12.5px] text-white font-bold flex items-center gap-1 cursor-pointer mt-0.5 hover:text-blue-100"
+          >
+            <span>Exp:{wallet?.exposure ?? 0}</span>
+            <span className="ml-1">{user?.username || 'Demo'}</span>
             <svg className="w-3 h-3 text-white inline" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
@@ -295,7 +489,7 @@ function DragonTigerScreen({ onBack }) {
           </svg>
         </div>
         <div className="italic text-slate-100 font-medium truncate tracking-tight text-[12px]">
-          Newly Launched Matka Market In Our Exchange
+          Live 20-20 Dragon Tiger Exchange Table
         </div>
       </div>
 
@@ -307,40 +501,112 @@ function DragonTigerScreen({ onBack }) {
         </button>
       </div>
 
-      {/* 4. Sub-bar 2: GAME | PLACED BET (0) Round ID */}
+      {/* 4. Sub-bar 2: GAME | PLACED BET | Round ID */}
       <div className="bg-[#19354d] text-white px-3 py-1.5 flex items-center justify-between text-[11px] font-bold border-b border-black/30">
         <div className="flex items-center gap-1.5">
           <span className="tracking-wide">GAME</span>
           <span className="text-slate-500">|</span>
-          <span className="text-slate-200">PLACED BET (0)</span>
+          <span className="text-slate-200">EXP: {wallet?.exposure ?? 0}</span>
           <span className="text-slate-500">|</span>
         </div>
         <div className="text-slate-300 font-medium tracking-tight">
-          Round ID: 116260916155250
+          Round ID: {roundState.roundId}
         </div>
       </div>
 
       {/* 5. Live Stream Card Table Area */}
-      <div className="w-full h-[210px] bg-black relative flex flex-col justify-between overflow-hidden shadow-inner">
-        <div className="flex items-center gap-1.5 p-2.5 z-10">
-          <div className="w-6 h-8 bg-blue-600 border border-white rounded-[2px] shadow-sm flex items-center justify-center p-[2px]">
-            <div className="w-full h-full border border-white/50 bg-blue-700"></div>
+      <div className="w-full h-[210px] bg-[#0c1a24] relative flex flex-col justify-between overflow-hidden shadow-inner border-y border-black/40">
+        {/* Top bar in stream: Cards and Countdown */}
+        <div className="flex items-center justify-between p-3 z-10">
+          <div className="flex items-center gap-3">
+            {/* Dragon Card Slot */}
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-black text-[#ff6b6b] uppercase tracking-wider mb-1">DRAGON</span>
+              <CasinoCard
+                cardStr={activeDragonCard}
+                side="DRAGON"
+                isWinner={isRoundResolved && roundState.result === 'DRAGON'}
+              />
+            </div>
+
+            {/* VS separator */}
+            <div className="flex flex-col items-center justify-center pt-3 px-0.5">
+              <span className="text-amber-400 font-black text-[13px] italic tracking-widest drop-shadow">VS</span>
+            </div>
+
+            {/* Tiger Card Slot */}
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-black text-[#60a5fa] uppercase tracking-wider mb-1">TIGER</span>
+              <CasinoCard
+                cardStr={activeTigerCard}
+                side="TIGER"
+                isWinner={isRoundResolved && roundState.result === 'TIGER'}
+              />
+            </div>
           </div>
-          <div className="w-6 h-8 bg-blue-600 border border-white rounded-[2px] shadow-sm flex items-center justify-center p-[2px]">
-            <div className="w-full h-full border border-white/50 bg-blue-700"></div>
+
+          {/* Center Announcement Banner if Completed */}
+          {roundState.status === 'COMPLETED' && roundState.result && (
+            <div className="px-3 py-1 rounded bg-amber-400 text-black font-extrabold text-[12px] tracking-wider uppercase shadow">
+              🏆 {roundState.result} WINS
+            </div>
+          )}
+
+          {/* Countdown timer */}
+          <div className="flex items-center gap-1">
+            <div className="w-7 h-8 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
+              {tensDigit}
+            </div>
+            <div className="w-7 h-8 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
+              {onesDigit}
+            </div>
           </div>
         </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none"></div>
 
-        <div className="flex items-center justify-end gap-1 p-2.5 z-10">
-          <div className="w-7 h-7 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
-            0
+        {/* Bottom Bar in video: Status indicator */}
+        <div className="flex items-center justify-between px-3 py-1.5 z-10 text-[11px] text-slate-200 font-semibold bg-black/60">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${roundState.bettingOpen ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`}></span>
+            <span>{roundState.bettingOpen ? 'Betting Open' : 'Betting Closed - Cards Dealing'}</span>
           </div>
-          <div className="w-7 h-7 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
-            7
-          </div>
+          <span className="text-amber-300 font-mono">Min: ₹10</span>
         </div>
+      </div>
+
+      {/* Chip Selector & Action Bar */}
+      <div className="bg-[#1e4e70] px-3 py-2 text-white flex items-center justify-between border-t border-b border-black/30">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10.5px] font-bold text-slate-300 uppercase">CHIP:</span>
+          {[10, 50, 100, 500, 1000].map(chip => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => setSelectedChip(chip)}
+              className={`w-7 h-7 rounded-full text-[10px] font-extrabold flex items-center justify-center transition-all cursor-pointer border ${
+                selectedChip === chip
+                  ? 'bg-amber-400 text-black border-white ring-2 ring-amber-300 scale-105 shadow font-black'
+                  : 'bg-[#296894] text-white border-blue-300/40 hover:bg-[#347ba8]'
+              }`}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          disabled={!roundState.bettingOpen || betLoading}
+          onClick={() => handlePlaceBet(selectedBet, selectedChip)}
+          className={`px-3 py-1.5 rounded-[3px] font-black text-[11.5px] uppercase tracking-wide transition-all shadow cursor-pointer ${
+            roundState.bettingOpen
+              ? 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white'
+              : 'bg-slate-600 text-slate-400 cursor-not-allowed'
+          }`}
+        >
+          {betLoading ? 'Placing...' : `Bet ₹${selectedChip} on ${selectedBet}`}
+        </button>
       </div>
 
       {/* 6. Main Betting Row (Dragon, Tie, Tiger, Pair) */}
@@ -348,9 +614,9 @@ function DragonTigerScreen({ onBack }) {
         <div className="flex items-stretch gap-1">
           <div className="flex-1 flex flex-col">
             <div className="grid grid-cols-3 text-center font-black text-[13px] text-slate-900 pb-1">
-              <div>2</div>
-              <div>50</div>
-              <div>2</div>
+              <div>2.0</div>
+              <div>12.0</div>
+              <div>2.0</div>
             </div>
             <div className="grid grid-cols-3 gap-1">
               <button
@@ -358,7 +624,7 @@ function DragonTigerScreen({ onBack }) {
                 onClick={() => setSelectedBet('Dragon')}
                 className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                   selectedBet === 'Dragon'
-                    ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                    ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
                     : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
                 }`}
               >
@@ -369,7 +635,7 @@ function DragonTigerScreen({ onBack }) {
                 onClick={() => setSelectedBet('Tie')}
                 className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                   selectedBet === 'Tie'
-                    ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                    ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
                     : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
                 }`}
               >
@@ -380,7 +646,7 @@ function DragonTigerScreen({ onBack }) {
                 onClick={() => setSelectedBet('Tiger')}
                 className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                   selectedBet === 'Tiger'
-                    ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                    ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
                     : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
                 }`}
               >
@@ -400,7 +666,7 @@ function DragonTigerScreen({ onBack }) {
               onClick={() => setSelectedBet('Pair')}
               className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
                 selectedBet === 'Pair'
-                  ? 'bg-[#3982b8] ring-2 ring-blue-300'
+                  ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
                   : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
               }`}
             >
@@ -603,10 +869,10 @@ function DragonTigerScreen({ onBack }) {
             <div
               key={rIdx}
               className={`w-6 h-6 rounded-full font-black text-[12px] text-white flex items-center justify-center shadow-xs shrink-0 ${
-                res === 'D' ? 'bg-[#c0392b]' : 'bg-[#2980b9]'
+                res === 'D' || res === 'DRAGON' ? 'bg-[#c0392b]' : res === 'T' || res === 'TIGER' ? 'bg-[#2980b9]' : 'bg-emerald-600'
               }`}
             >
-              {res}
+              {res ? String(res)[0] : '-'}
             </div>
           ))}
         </div>
@@ -660,7 +926,7 @@ function DragonTigerScreen({ onBack }) {
           </div>
 
           <p className="text-[11px] font-medium text-slate-900 text-center tracking-tight leading-tight">
-            © Copyright 2026. All Rights Reserved. Powered by ALL.
+            © Copyright 2026. All Rights Reserved. Powered by Allpanel8.
           </p>
         </div>
       </footer>
@@ -669,15 +935,143 @@ function DragonTigerScreen({ onBack }) {
 }
 
 export default function Home() {
+  const [user, setUser] = useState(null);
+  const [wallet, setWallet] = useState({ balance: 0, exposure: 0, available: 0 });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isPromoOpen, setIsPromoOpen] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  // Mandatory password change state
+  const [mustChangePasswordOpen, setMustChangePasswordOpen] = useState(false);
+  const [changePassForm, setChangePassForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [changePassError, setChangePassError] = useState('');
+  const [changePassLoading, setChangePassLoading] = useState(false);
+
+  const [isPromoOpen, setIsPromoOpen] = useState(false);
   const [activeGameView, setActiveGameView] = useState(false);
   const [activeCategory, setActiveCategory] = useState('CRASH'); // 'CRASH' | 'SPORTS' | 'OUR CASINO'
   const [activeSport, setActiveSport] = useState('CRICKET');
   const [activeVipCasinoTab, setActiveVipCasinoTab] = useState('OUR CASINO');
   const [activeCasinoFilter, setActiveCasinoFilter] = useState('ALL CASINO');
+
+  const fetchWallet = useCallback(async () => {
+    try {
+      const res = await fetch('/api/wallet');
+      if (res.ok) {
+        const data = await res.json();
+        setWallet({
+          balance: Number(data.balance || 0),
+          exposure: Number(data.exposure || 0),
+          available: Number(data.available || 0),
+        });
+      }
+    } catch {}
+  }, []);
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated) {
+          setUser(data.user);
+          setWallet(data.wallet || { balance: 0, exposure: 0, available: 0 });
+          setIsLoggedIn(true);
+          if (data.user.mustChangePassword && data.user.username !== 'user_a' && !data.user.username?.startsWith('demo')) {
+            setMustChangePasswordOpen(true);
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const handleLogin = async (e, customUser = null, customPass = null) => {
+    if (e) e.preventDefault();
+    const loginUsername = customUser || username;
+    const loginPassword = customPass || password;
+
+    if (!loginUsername || !loginPassword) {
+      setAuthError('Please enter username and password');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || 'Login failed');
+        setAuthLoading(false);
+        return;
+      }
+      setUser(data.user);
+      setWallet(data.wallet || { balance: 0, exposure: 0, available: 0 });
+      setIsLoggedIn(true);
+      if (data.user.mustChangePassword && data.user.username !== 'user_a' && !data.user.username?.startsWith('demo')) {
+        setMustChangePasswordOpen(true);
+      }
+      setAuthLoading(false);
+    } catch {
+      setAuthError('Network error connecting to server');
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    setIsLoggedIn(false);
+    setUser(null);
+    setWallet({ balance: 0, exposure: 0, available: 0 });
+    setActiveGameView(false);
+    setMustChangePasswordOpen(false);
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangePassError('');
+    if (changePassForm.newPassword !== changePassForm.confirmPassword) {
+      setChangePassError('New passwords do not match');
+      return;
+    }
+    if (changePassForm.newPassword.length < 6) {
+      setChangePassError('New password must be at least 6 characters');
+      return;
+    }
+    setChangePassLoading(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changePassForm),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setChangePassError(data.error || 'Failed to update password');
+        setChangePassLoading(false);
+        return;
+      }
+      setMustChangePasswordOpen(false);
+      setUser(prev => ({ ...prev, mustChangePassword: false }));
+      setChangePassForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setChangePassLoading(false);
+      fetchWallet();
+    } catch {
+      setChangePassError('Network error');
+      setChangePassLoading(false);
+    }
+  };
 
   // Filter games based on selected tab: DRAGON TIGER shows ONLY dt20.jpg 4 times
   const displayedGames = (() => {
@@ -698,9 +1092,7 @@ export default function Home() {
   })();
 
   const handleDemoLogin = () => {
-    setIsLoggedIn(true);
-    setIsPromoOpen(true);
-    setActiveCategory('CRASH');
+    handleLogin(null, 'user_a', 'User@123');
   };
 
   return (
@@ -715,9 +1107,9 @@ export default function Home() {
           <div className="w-full min-h-screen bg-gradient-to-b from-[#204867] via-[#2d6b99] to-[#3982b8] flex flex-col justify-between select-none animate-fadeIn">
             {/* Top Logo & Login Card */}
             <div className="w-full flex flex-col items-center pt-8 px-5">
-              {/* ALL Logo */}
+              {/* ALLPANEL8 Logo */}
               <h1 className="font-['Bebas_Neue',sans-serif] text-[52px] tracking-[0.03em] text-white leading-none mb-6 text-center">
-                ALL
+                ALLPANEL<span className="text-amber-300">8</span>
               </h1>
 
               {/* Login Card */}
@@ -729,6 +1121,12 @@ export default function Home() {
                     <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
                   </svg>
                 </div>
+
+                {authError && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 rounded text-red-700 text-xs font-semibold text-center">
+                    {authError}
+                  </div>
+                )}
 
                 {/* Username Input */}
                 <div className="flex items-stretch border border-slate-300 rounded overflow-hidden focus-within:border-[#3982b8]">
@@ -765,10 +1163,11 @@ export default function Home() {
                 {/* Login Button */}
                 <button
                   type="button"
-                  onClick={handleDemoLogin}
-                  className="w-full bg-[#3982b8] hover:bg-[#2e6f9b] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
+                  disabled={authLoading}
+                  onClick={handleLogin}
+                  className="w-full bg-[#3982b8] hover:bg-[#2e6f9b] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm disabled:opacity-70"
                 >
-                  <span>Login</span>
+                  <span>{authLoading ? 'Logging in...' : 'Login'}</span>
                   <svg className="w-4 h-4 fill-white absolute right-3" viewBox="0 0 24 24">
                     <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
                   </svg>
@@ -778,9 +1177,9 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleDemoLogin}
-                  className="w-full bg-[#3982b8] hover:bg-[#2e6f9b] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
+                  className="w-full bg-[#296894] hover:bg-[#24577c] active:scale-[0.99] text-white font-bold text-[14px] py-2.5 px-4 rounded flex items-center justify-center relative cursor-pointer transition-all shadow-sm"
                 >
-                  <span>Login with demo ID</span>
+                  <span>Login with Demo ID</span>
                   <svg className="w-4 h-4 fill-white absolute right-3" viewBox="0 0 24 24">
                     <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
                   </svg>
@@ -859,7 +1258,13 @@ export default function Home() {
           /* ============================================================
              SCREEN 3: 20-20 DRAGON TIGER LIVE GAME TABLE (PURE CODE)
              ============================================================ */
-          <DragonTigerScreen onBack={() => setActiveGameView(false)} />
+          <DragonTigerScreen
+            onBack={() => setActiveGameView(false)}
+            user={user}
+            wallet={wallet}
+            onWalletUpdate={setWallet}
+            onLogout={handleLogout}
+          />
         ) : (
            /* ============================================================
              SCREEN 2: ALL Dashboard
@@ -879,24 +1284,24 @@ export default function Home() {
                   <span className="w-[22px] h-[3.5px] bg-white rounded-[2px] block"></span>
                   <span className="w-[22px] h-[3.5px] bg-white rounded-[2px] block"></span>
                 </button>
-                {/* ALL Logo */}
-                <span className="font-['Bebas_Neue',sans-serif] text-[35px] tracking-[0.04em] leading-none text-white uppercase font-normal pt-0.5">
-                  ALL
+                {/* ALLPANEL8 Logo */}
+                <span className="font-['Bebas_Neue',sans-serif] text-[34px] tracking-[0.03em] leading-none text-white uppercase font-normal pt-0.5">
+                  ALLPANEL<span className="text-amber-300">8</span>
                 </span>
               </div>
 
               {/* User Balance & Mode */}
               <div className="flex flex-col items-end leading-tight text-right">
                 <div className="text-[13px] font-bold text-white tracking-tight">
-                  Balance:1500
+                  Balance:{wallet?.balance ?? 0}
                 </div>
                 <div
-                  onClick={() => setIsLoggedIn(false)}
+                  onClick={handleLogout}
                   title="Logout / Return to Login"
                   className="text-[13px] text-white font-bold flex items-center gap-1.5 cursor-pointer mt-0.5 hover:text-blue-200 transition-colors"
                 >
-                  <span>Exp:0</span>
-                  <span className="ml-1">Demo</span>
+                  <span>Exp:{wallet?.exposure ?? 0}</span>
+                  <span className="ml-1">{user?.username || 'Player'}</span>
                   <svg
                     className="w-3.5 h-3.5 text-white inline"
                     fill="none"
@@ -1307,7 +1712,7 @@ export default function Home() {
 
                 {/* Copyright Line */}
                 <p className="text-[11.5px] font-medium text-slate-900 text-center tracking-tight leading-tight">
-                  © Copyright 2026. All Rights Reserved. Powered by ALL.
+                  © Copyright 2026. All Rights Reserved. Powered by Allpanel8.
                 </p>
 
                 {/* Small home indicator */}
@@ -1315,6 +1720,83 @@ export default function Home() {
               </div>
             </footer>
 
+          </div>
+        )}
+
+        {/* MANDATORY FIRST-LOGIN PASSWORD CHANGE MODAL */}
+        {mustChangePasswordOpen && (
+          <div className="fixed inset-0 bg-black/85 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-5 border border-slate-200 flex flex-col gap-3.5">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-[16px] leading-tight">Change Password</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">First-time login mandatory update</p>
+                </div>
+              </div>
+
+              <p className="text-[12px] text-slate-600 leading-snug">
+                Your account was created with a temporary password. For security, please enter a new password to activate your ID and start playing.
+              </p>
+
+              {changePassError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded text-red-700 text-xs font-semibold">
+                  {changePassError}
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-[11.5px] font-bold text-slate-700 mb-1">Temporary Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter temp password"
+                    value={changePassForm.oldPassword}
+                    onChange={(e) => setChangePassForm(p => ({ ...p, oldPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-800 outline-none focus:border-[#3982b8]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11.5px] font-bold text-slate-700 mb-1">New Password (min 6 chars)</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="Enter new password"
+                    value={changePassForm.newPassword}
+                    onChange={(e) => setChangePassForm(p => ({ ...p, newPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-800 outline-none focus:border-[#3982b8]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11.5px] font-bold text-slate-700 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="Confirm new password"
+                    value={changePassForm.confirmPassword}
+                    onChange={(e) => setChangePassForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-800 outline-none focus:border-[#3982b8]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={changePassLoading}
+                  className="w-full mt-2 py-2.5 px-4 bg-[#3982b8] hover:bg-[#2c6994] active:scale-[0.99] text-white font-bold text-sm rounded shadow-sm flex items-center justify-center transition-all disabled:opacity-60 cursor-pointer"
+                >
+                  {changePassLoading ? 'Updating Password...' : 'Save Password & Enter Lobby'}
+                </button>
+              </form>
+            </div>
           </div>
         )}
 

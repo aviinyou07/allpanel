@@ -24,7 +24,7 @@ router.get('/rounds', async (req, res) => {
     const session = await getSessionFromReq(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
-    const pageSize = parseInt(req.query.pageSize || '20', 10);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize || '20', 10) || 20));
     const rows = await query(
       'SELECT * FROM game_rounds ORDER BY started_at DESC LIMIT ?',
       [pageSize]

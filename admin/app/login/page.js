@@ -20,13 +20,20 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, rememberMe }),
+        body: JSON.stringify({ username, password, rememberMe, adminOnly: true }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         setError(data.error || 'Login failed');
+        setLoading(false);
+        return;
+      }
+
+      if (data.user?.role === 'USER') {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        setError('Access denied: Player accounts cannot access the admin panel.');
         setLoading(false);
         return;
       }
@@ -48,7 +55,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Dragon Tiger</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Allpanel8</h1>
           <p className="text-slate-400 text-sm mt-1">Admin Panel</p>
         </div>
 
@@ -62,7 +69,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" suppressHydrationWarning>
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-1.5">
                 Username
@@ -76,6 +83,7 @@ export default function LoginPage() {
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
                 required
                 autoComplete="username"
+                suppressHydrationWarning
               />
             </div>
 
@@ -92,6 +100,7 @@ export default function LoginPage() {
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
                 required
                 autoComplete="current-password"
+                suppressHydrationWarning
               />
             </div>
 
@@ -102,6 +111,7 @@ export default function LoginPage() {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  suppressHydrationWarning
                 />
                 <span className="text-sm text-slate-600">Remember me</span>
               </label>
@@ -131,7 +141,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          © 2026 Dragon Tiger. All rights reserved.
+          © 2026 Allpanel8. All rights reserved.
         </p>
       </div>
     </div>

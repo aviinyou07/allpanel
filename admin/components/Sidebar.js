@@ -34,7 +34,7 @@ export default function Sidebar({ user, isOpen, onClose, onLogout, currentPath }
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-white font-bold text-base tracking-tight leading-tight">DRAGON TIGER</h1>
+            <h1 className="text-white font-bold text-base tracking-tight leading-tight">ALLPANEL8</h1>
             <p className="text-slate-500 text-[11px] font-medium uppercase tracking-wider">Admin Panel</p>
           </div>
         </div>

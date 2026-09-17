@@ -13,9 +13,10 @@ router.get('/', async (req, res) => {
       return res.status(403).json({ error: 'Only Supreme can view audit logs' });
     }
 
-    const page = parseInt(req.query.page || '1', 10);
-    const pageSize = parseInt(req.query.pageSize || '20', 10);
+    const page = Math.max(1, parseInt(req.query.page || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize || '20', 10) || 20));
     const action = req.query.action || '';
+    const search = req.query.search || '';
 
     let whereClause = 'WHERE 1=1';
     const params = [];
@@ -25,7 +26,17 @@ router.get('/', async (req, res) => {
       params.push(action);
     }
 
-    const [countResult] = await query(`SELECT COUNT(*) as total FROM audit_logs a ${whereClause}`, params);
+    if (search) {
+      whereClause += ' AND (a.action LIKE ? OR a.target_type LIKE ? OR a.ip_address LIKE ? OR u.username LIKE ?)';
+      const s = `%${search}%`;
+      params.push(s, s, s, s);
+    }
+
+    const [countResult] = await query(
+      `SELECT COUNT(*) as total FROM audit_logs a 
+       LEFT JOIN users u ON u.id = a.actor_id 
+       ${whereClause}`, params
+    );
     const total = countResult?.total || 0;
 
     const offset = (page - 1) * pageSize;

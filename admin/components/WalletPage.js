@@ -8,13 +8,17 @@ export default function WalletPage() {
   const [recentTxns, setRecentTxns] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [currentUserId, setCurrentUserId] = useState(null);
+
   useEffect(() => {
     Promise.all([
       fetch('/api/wallet').then(r => r.json()),
       fetch('/api/transactions?pageSize=10').then(r => r.json()),
-    ]).then(([w, t]) => {
+      fetch('/api/auth/me').then(r => r.json()),
+    ]).then(([w, t, me]) => {
       setWallet(w);
       setRecentTxns(t.data || []);
+      setCurrentUserId(me?.user?.id || null);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -61,26 +65,31 @@ export default function WalletPage() {
           {recentTxns.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-slate-400">No transactions yet</p>
           ) : (
-            recentTxns.map((txn, i) => (
-              <div key={i} className="px-5 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
-                    ${txn.type === 'CREDIT' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                    {txn.type === 'CREDIT' ? '+' : '-'}
+            recentTxns.map((txn, i) => {
+              const isDebit = currentUserId && txn.from_user_id === currentUserId;
+              const isCredit = !isDebit;
+
+              return (
+                <div key={i} className="px-5 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+                      ${isCredit ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                      {isCredit ? '+' : '-'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">{txn.from_username || 'System'} → {txn.to_username || '-'}</p>
+                      <p className="text-xs text-slate-400">{txn.txn_id}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">{txn.from_username} → {txn.to_username}</p>
-                    <p className="text-xs text-slate-400">{txn.txn_id}</p>
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
+                      {isCredit ? '+' : '-'}{fmt(txn.amount)}
+                    </p>
+                    <p className="text-xs text-slate-400">{new Date(txn.created_at).toLocaleString()}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`text-sm font-semibold ${txn.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
-                    {txn.type === 'CREDIT' ? '+' : '-'}{fmt(txn.amount)}
-                  </p>
-                  <p className="text-xs text-slate-400">{new Date(txn.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

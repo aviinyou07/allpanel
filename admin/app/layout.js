@@ -1,13 +1,14 @@
 import './globals.css';
+import { ToastProvider } from '@/components/Toast';
 
 export const metadata = {
-  title: 'Dragon Tiger Admin Panel',
-  description: 'Admin Panel for Dragon Tiger Gaming Platform',
+  title: 'Allpanel8 Admin Panel',
+  description: 'Admin Panel for Allpanel8 Platform',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -16,7 +17,9 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

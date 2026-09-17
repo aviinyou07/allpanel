@@ -53,7 +53,7 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'dragon-tiger-backend', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', service: 'allpanel8-backend', timestamp: new Date().toISOString() });
 });
 
 // API Routes
@@ -76,10 +76,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`=========================================`);
-  console.log(`  Dragon Tiger Backend Service Running   `);
-  console.log(`  Port: http://localhost:${PORT}          `);
+  console.log(`     Allpanel8 Backend Service Running   `);
+  console.log(`     Host: 0.0.0.0, Port: ${PORT}        `);
   console.log(`=========================================`);
 });
 

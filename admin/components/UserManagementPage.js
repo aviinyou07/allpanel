@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import CreateUserModal from '@/components/CreateUserModal';
+import EditUserModal from '@/components/EditUserModal';
 import CoinTransferModal from '@/components/CoinTransferModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useToast } from '@/components/Toast';
@@ -16,6 +17,7 @@ export default function UserManagementPage({ targetRole, title, createLabel }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [transferTarget, setTransferTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [statusTarget, setStatusTarget] = useState(null);
@@ -144,6 +146,13 @@ export default function UserManagementPage({ targetRole, title, createLabel }) {
               <Coins className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setEditTarget(row)}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+              title="Edit Account"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setStatusTarget(row)}
               className={`p-1.5 rounded-lg transition-colors ${
                 row.status === 'ACTIVE' ? 'hover:bg-amber-50 text-amber-600' : 'hover:bg-green-50 text-green-600'
@@ -169,6 +178,13 @@ export default function UserManagementPage({ targetRole, title, createLabel }) {
         onClose={() => setShowCreate(false)}
         onCreate={() => { fetchData(); showToast(`${createLabel.replace('Create ', '')} created successfully`, 'success'); }}
         targetRole={targetRole}
+      />
+
+      <EditUserModal
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onUpdate={() => { fetchData(); showToast('Account updated successfully', 'success'); }}
+        user={editTarget}
       />
 
       <CoinTransferModal

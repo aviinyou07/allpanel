@@ -75,7 +75,7 @@ export default function SupremeDashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-slate-700">
-                        {txn.from_username} → {txn.to_username}
+                        {txn.from_username || 'System'} → {txn.to_username || '-'}
                       </p>
                       <p className="text-xs text-slate-400">{txn.txn_id}</p>
                     </div>

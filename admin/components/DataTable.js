@@ -62,11 +62,14 @@ export default function DataTable({
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
-                  {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3">
-                      <div className="h-4 bg-slate-100 rounded animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
-                    </td>
-                  ))}
+                  {columns.map((col, cIdx) => {
+                    const widths = ['70%', '85%', '60%', '75%', '65%'];
+                    return (
+                      <td key={col.key} className="px-4 py-3">
+                        <div className="h-4 bg-slate-100 rounded animate-pulse" style={{ width: widths[(i + cIdx) % widths.length] }} />
+                      </td>
+                    );
+                  })}
                   {actions && (
                     <td className="px-4 py-3">
                       <div className="h-4 bg-slate-100 rounded animate-pulse w-20 ml-auto" />

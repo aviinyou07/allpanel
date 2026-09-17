@@ -7,7 +7,6 @@ const ROLE_ROUTE_MAP = {
   SUPREME: '/supreme',
   SUPER_ADMIN: '/super-admin',
   MASTER: '/master',
-  USER: '/user',
 };
 
 export async function middleware(request) {
@@ -69,6 +68,13 @@ export async function middleware(request) {
 
     const role = payload.role;
     const expectedPrefix = ROLE_ROUTE_MAP[role];
+
+    if (!expectedPrefix) {
+      // Role not allowed in admin panel (e.g. USER)
+      const response = NextResponse.redirect(new URL('/login?error=unauthorized', request.url));
+      response.cookies.delete(COOKIE_NAME);
+      return response;
+    }
 
     // For page routes, validate role matches route prefix
     const protectedPrefixes = Object.values(ROLE_ROUTE_MAP);

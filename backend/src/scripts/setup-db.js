@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 const envCandidates = [
   path.resolve(__dirname, '..', '.env.local'),
   path.resolve(__dirname, '..', '..', '.env.local'),
+  path.resolve(__dirname, '..', '.env'),
+  path.resolve(__dirname, '..', '..', '.env'),
 ];
 for (const envPath of envCandidates) {
   if (fs.existsSync(envPath)) {
@@ -88,6 +90,40 @@ async function setupDatabase() {
     }
   }
   console.log('✅ Tables created');
+
+  // Apply migrations for existing tables safely
+  const migrations = [
+    {
+      table: 'users',
+      column: 'must_change_password',
+      sql: 'ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT TRUE',
+    },
+    {
+      table: 'wallets',
+      column: 'exposure',
+      sql: 'ALTER TABLE wallets ADD COLUMN exposure BIGINT NOT NULL DEFAULT 0',
+    },
+    {
+      table: 'game_bets',
+      column: 'net_pnl',
+      sql: 'ALTER TABLE game_bets ADD COLUMN net_pnl BIGINT DEFAULT 0',
+    },
+  ];
+
+  for (const mig of migrations) {
+    try {
+      const [cols] = await connection.execute(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+        [dbName, mig.table, mig.column]
+      );
+      if (cols.length === 0) {
+        await connection.execute(mig.sql);
+        console.log(`✅ Applied migration: Added ${mig.column} to ${mig.table}`);
+      }
+    } catch (err) {
+      console.error(`⚠️ Migration error on ${mig.table}.${mig.column}:`, err.message);
+    }
+  }
 
   await connection.end();
   console.log('\n🎉 Database setup complete!\n');

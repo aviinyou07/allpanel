@@ -1,13 +1,13 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'ALL - Exchange & Sports Betting',
-  description: 'ALL Sports Exchange and Live Casino',
+  title: 'Allpanel8 - Exchange & Live Casino',
+  description: 'Allpanel8 Sports Exchange and Live Casino',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

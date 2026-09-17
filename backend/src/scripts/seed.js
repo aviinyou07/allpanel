@@ -11,6 +11,8 @@ const __dirname = path.dirname(__filename);
 const envCandidates = [
   path.resolve(__dirname, '..', '.env.local'),
   path.resolve(__dirname, '..', '..', '.env.local'),
+  path.resolve(__dirname, '..', '.env'),
+  path.resolve(__dirname, '..', '..', '.env'),
 ];
 for (const envPath of envCandidates) {
   if (fs.existsSync(envPath)) {
@@ -142,7 +144,7 @@ async function seed() {
     { fromId: supremeId, toId: saBId, fromRole: 'SUPREME', toRole: 'SUPER_ADMIN', amount: 800000, type: 'CREDIT', remarks: 'Initial allocation' },
     { fromId: saAId, toId: mAId, fromRole: 'SUPER_ADMIN', toRole: 'MASTER', amount: 400000, type: 'CREDIT', remarks: 'Coin distribution' },
     { fromId: saAId, toId: mBId, fromRole: 'SUPER_ADMIN', toRole: 'MASTER', amount: 300000, type: 'CREDIT', remarks: 'Coin distribution' },
-    { fromId: saBId, toId: mCId, fromRole: 'SUPREME', toRole: 'MASTER', amount: 300000, type: 'CREDIT', remarks: 'Coin distribution' },
+    { fromId: saBId, toId: mCId, fromRole: 'SUPER_ADMIN', toRole: 'MASTER', amount: 300000, type: 'CREDIT', remarks: 'Coin distribution' },
   ];
 
   for (let i = 0; i < txns.length; i++) {

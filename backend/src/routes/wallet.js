@@ -24,14 +24,19 @@ router.get('/', async (req, res) => {
     }
 
     const wallet = await queryOne(
-      'SELECT balance, total_received, total_distributed FROM wallets WHERE user_id = ?',
+      'SELECT balance, exposure, total_received, total_distributed FROM wallets WHERE user_id = ?',
       [userId]
     );
 
     const isSupreme = session?.role === 'SUPREME';
+    const balance = isSupreme ? -1 : (wallet ? Number(wallet.balance) : 0);
+    const exposure = isSupreme ? 0 : (wallet ? Number(wallet.exposure || 0) : 0);
+    const available = isSupreme ? -1 : balance + exposure;
 
     return res.json({
-      balance: isSupreme ? -1 : (wallet ? Number(wallet.balance) : 0),
+      balance,
+      exposure,
+      available,
       totalReceived: wallet ? Number(wallet.total_received) : 0,
       totalDistributed: wallet ? Number(wallet.total_distributed) : 0,
       isUnlimited: isSupreme,
@@ -59,8 +64,8 @@ router.post('/transfer', async (req, res) => {
     }
 
     const numAmount = parseInt(amount, 10);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      return res.status(400).json({ error: 'Amount must be a positive number' });
+    if (!Number.isSafeInteger(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive whole number' });
     }
 
     const receiver = await queryOne(
@@ -104,7 +109,7 @@ router.post('/transfer', async (req, res) => {
         return res.status(400).json({ error: 'Wallet not found' });
       }
 
-      if (session.role !== 'SUPREME' && senderWallet.balance < numAmount) {
+      if (session.role !== 'SUPREME' && Number(senderWallet.balance) < numAmount) {
         await conn.rollback();
         return res.status(400).json({ error: 'Insufficient balance' });
       }
@@ -131,7 +136,7 @@ router.post('/transfer', async (req, res) => {
         [numAmount, numAmount, receiverId]
       );
 
-      const txnId = `TXN${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+      const txnId = `TXN${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       await conn.execute(
         `INSERT INTO transactions (txn_id, from_user_id, to_user_id, from_role, to_role, amount, type, 
          balance_before, balance_after, receiver_balance_before, receiver_balance_after, status, remarks, created_by)

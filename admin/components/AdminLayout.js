@@ -26,6 +26,10 @@ export default function AdminLayout({ children }) {
         return;
       }
       const data = await res.json();
+      if (!data.authenticated || !data.user || data.user.role === 'USER') {
+        router.push('/login');
+        return;
+      }
       setUser(data.user);
       setWallet(data.wallet);
     } catch {

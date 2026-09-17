@@ -33,15 +33,20 @@ router.get('/', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const page = parseInt(req.query.page || '1', 10);
-    const pageSize = parseInt(req.query.pageSize || '20', 10);
+    const page = Math.max(1, parseInt(req.query.page || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize || '20', 10) || 20));
     const type = req.query.type || '';
     const search = req.query.search || '';
 
     let whereClause = 'WHERE 1=1';
     const params = [];
 
-    if (session.role !== 'SUPREME') {
+    if (session.role === 'SUPER_ADMIN') {
+      whereClause += ` AND (t.from_user_id = ? OR t.to_user_id = ? 
+        OR t.from_user_id IN (SELECT id FROM users WHERE parent_id = ? OR parent_id IN (SELECT id FROM users WHERE parent_id = ?))
+        OR t.to_user_id IN (SELECT id FROM users WHERE parent_id = ? OR parent_id IN (SELECT id FROM users WHERE parent_id = ?)))`;
+      params.push(session.id, session.id, session.id, session.id, session.id, session.id);
+    } else if (session.role === 'MASTER') {
       whereClause += ` AND (t.from_user_id = ? OR t.to_user_id = ? 
         OR t.from_user_id IN (SELECT id FROM users WHERE parent_id = ?)
         OR t.to_user_id IN (SELECT id FROM users WHERE parent_id = ?))`;

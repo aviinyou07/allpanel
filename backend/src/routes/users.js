@@ -16,8 +16,8 @@ router.get('/', async (req, res) => {
     const session = await getSessionFromReq(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
-    const page = parseInt(req.query.page || '1', 10);
-    const pageSize = parseInt(req.query.pageSize || '10', 10);
+    const page = Math.max(1, parseInt(req.query.page || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize || '10', 10) || 10));
     const search = req.query.search || '';
     const role = req.query.role || '';
     const status = req.query.status || '';
@@ -81,7 +81,7 @@ router.post('/', async (req, res) => {
     const session = await getSessionFromReq(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { fullName, username, email, mobile, password, role, status } = req.body || {};
+    const { fullName, username, email, mobile, password, role, status, initialCredit } = req.body || {};
 
     const allowedRole = canCreateRole(session.role);
     if (!allowedRole || allowedRole !== role) {
@@ -96,37 +96,96 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const existing = await queryOne('SELECT id FROM users WHERE username = ?', [username]);
+    const creditAmount = parseInt(initialCredit || 0, 10);
+    if (isNaN(creditAmount) || creditAmount < 0) {
+      return res.status(400).json({ error: 'Initial credit must be a non-negative number' });
+    }
+
+    const existing = await queryOne('SELECT id FROM users WHERE username = ?', [username.trim()]);
     if (existing) {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
     const hashedPassword = await hashPassword(password);
+    const mustChangePassword = role === 'USER';
 
     const conn = await getConnection();
     try {
       await conn.beginTransaction();
 
+      let senderBalanceBefore = 0;
+      let senderBalanceAfter = 0;
+
+      if (creditAmount > 0) {
+        const [senderWalletRows] = await conn.execute(
+          'SELECT * FROM wallets WHERE user_id = ? FOR UPDATE',
+          [session.id]
+        );
+        const senderWallet = senderWalletRows[0];
+        if (!senderWallet) {
+          await conn.rollback();
+          return res.status(400).json({ error: 'Sender wallet not found' });
+        }
+
+        senderBalanceBefore = Number(senderWallet.balance);
+        if (session.role !== 'SUPREME' && senderBalanceBefore < creditAmount) {
+          await conn.rollback();
+          return res.status(400).json({ error: `Insufficient balance to credit ₹${creditAmount}. Current balance: ₹${senderBalanceBefore}` });
+        }
+
+        senderBalanceAfter = session.role === 'SUPREME' ? senderBalanceBefore : senderBalanceBefore - creditAmount;
+
+        if (session.role !== 'SUPREME') {
+          await conn.execute(
+            'UPDATE wallets SET balance = balance - ?, total_distributed = total_distributed + ? WHERE user_id = ?',
+            [creditAmount, creditAmount, session.id]
+          );
+        } else {
+          await conn.execute(
+            'UPDATE wallets SET total_distributed = total_distributed + ? WHERE user_id = ?',
+            [creditAmount, session.id]
+          );
+        }
+      }
+
       const [result] = await conn.execute(
-        'INSERT INTO users (username, email, full_name, mobile, password, role, parent_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [username, email || null, fullName, mobile || null, hashedPassword, role, session.id, status || 'ACTIVE']
+        'INSERT INTO users (username, email, full_name, mobile, password, role, parent_id, status, must_change_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [username.trim(), email || null, fullName, mobile || null, hashedPassword, role, session.id, status || 'ACTIVE', mustChangePassword]
       );
       const userId = result.insertId;
 
       await conn.execute(
-        'INSERT INTO wallets (user_id, balance, total_received, total_distributed) VALUES (?, 0, 0, 0)',
-        [userId]
+        'INSERT INTO wallets (user_id, balance, exposure, total_received, total_distributed) VALUES (?, ?, 0, ?, 0)',
+        [userId, creditAmount, creditAmount]
       );
+
+      if (creditAmount > 0) {
+        const txnId = `TXN${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        await conn.execute(
+          `INSERT INTO transactions (txn_id, from_user_id, to_user_id, from_role, to_role, amount, type, 
+           balance_before, balance_after, receiver_balance_before, receiver_balance_after, status, remarks, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, 'CREDIT', ?, ?, 0, ?, 'SUCCESS', ?, ?)`,
+          [txnId, session.id, userId, session.role, role, creditAmount,
+           senderBalanceBefore, senderBalanceAfter, creditAmount,
+           'Initial token allocation upon account creation', session.id]
+        );
+      }
 
       await conn.execute(
         'INSERT INTO audit_logs (actor_id, actor_role, action, target_id, target_type, details, ip_address, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [session.id, session.role, 'CREATE_ACCOUNT', userId, role, JSON.stringify({ username, fullName }),
+        [session.id, session.role, 'CREATE_ACCOUNT', userId, role, JSON.stringify({ username: username.trim(), fullName, initialCredit: creditAmount }),
          getIP(req), 'SUCCESS']
       );
 
       await conn.commit();
 
-      return res.status(201).json({ success: true, userId });
+      return res.status(201).json({
+        success: true,
+        userId,
+        username: username.trim(),
+        initialCredit: creditAmount,
+        mustChangePassword,
+      });
     } catch (err) {
       await conn.rollback();
       throw err;
@@ -188,15 +247,36 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    const { fullName, email, mobile, status } = body;
-    await query(
-      'UPDATE users SET full_name = COALESCE(?, full_name), email = COALESCE(?, email), mobile = COALESCE(?, mobile), status = COALESCE(?, status) WHERE id = ?',
-      [fullName, email, mobile, status, id]
-    );
+    const { fullName, email, mobile, status, password } = body;
+    const sanitizedEmail = email !== undefined ? (email ? email.trim() : null) : undefined;
+    const sanitizedMobile = mobile !== undefined ? (mobile ? mobile.trim() : null) : undefined;
+
+    let hashedPassword = null;
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      hashedPassword = await hashPassword(password);
+    }
+
+    if (hashedPassword) {
+      await query(
+        'UPDATE users SET full_name = COALESCE(?, full_name), email = COALESCE(?, email), mobile = COALESCE(?, mobile), status = COALESCE(?, status), password = ? WHERE id = ?',
+        [fullName, sanitizedEmail, sanitizedMobile, status, hashedPassword, id]
+      );
+    } else {
+      await query(
+        'UPDATE users SET full_name = COALESCE(?, full_name), email = COALESCE(?, email), mobile = COALESCE(?, mobile), status = COALESCE(?, status) WHERE id = ?',
+        [fullName, sanitizedEmail, sanitizedMobile, status, id]
+      );
+    }
+
+    const auditDetails = { ...body };
+    if (auditDetails.password) auditDetails.password = '[REDACTED]';
 
     await query(
       'INSERT INTO audit_logs (actor_id, actor_role, action, target_id, target_type, details, ip_address, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [session.id, session.role, 'UPDATE_ACCOUNT', id, user.role, JSON.stringify(body),
+      [session.id, session.role, 'UPDATE_ACCOUNT', id, user.role, JSON.stringify(auditDetails),
        getIP(req), 'SUCCESS']
     );
 

@@ -9,18 +9,20 @@ export default function TransactionsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [type, setType] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, pageSize: 20, search });
+      if (type) params.set('type', type);
       const res = await fetch(`/api/transactions?${params}`);
       const json = await res.json();
       setData(json.data || []);
       setTotal(json.total || 0);
     } catch {} finally { setLoading(false); }
-  }, [page, search]);
+  }, [page, search, type]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -50,7 +52,25 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-slate-800">Transactions</h2>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-xl font-bold text-slate-800">Transactions</h2>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-slate-500">Filter Type:</label>
+          <select
+            value={type}
+            onChange={(e) => { setType(e.target.value); setPage(1); }}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Types</option>
+            <option value="CREDIT">CREDIT</option>
+            <option value="DEBIT">DEBIT</option>
+            <option value="BET">BET</option>
+            <option value="WIN">WIN</option>
+            <option value="LOSS">LOSS</option>
+            <option value="REFUND">REFUND</option>
+          </select>
+        </div>
+      </div>
       <DataTable
         columns={columns}
         data={data}

@@ -15,7 +15,7 @@ router.get('/overview', async (req, res) => {
       const [superAdmins] = await query("SELECT COUNT(*) as c FROM users WHERE role='SUPER_ADMIN' AND deleted_at IS NULL");
       const [masters] = await query("SELECT COUNT(*) as c FROM users WHERE role='MASTER' AND deleted_at IS NULL");
       const [users] = await query("SELECT COUNT(*) as c FROM users WHERE role='USER' AND deleted_at IS NULL");
-      const [totalDist] = await query("SELECT COALESCE(SUM(amount),0) as c FROM transactions WHERE type='CREDIT' AND status='SUCCESS'");
+      const [totalDist] = await query("SELECT COALESCE(SUM(amount),0) as c FROM transactions WHERE from_role='SUPREME' AND type='CREDIT' AND status='SUCCESS'");
       const [todayTxns] = await query("SELECT COUNT(*) as c FROM transactions WHERE DATE(created_at)=CURDATE()");
       const [activeUsers] = await query("SELECT COUNT(*) as c FROM users WHERE status='ACTIVE' AND deleted_at IS NULL AND role='USER'");
 
@@ -60,7 +60,7 @@ router.get('/overview', async (req, res) => {
     }
 
     const recentTxns = await query(
-      `SELECT t.txn_id, t.amount, t.type, t.status, t.created_at,
+      `SELECT t.txn_id, t.from_user_id, t.to_user_id, t.amount, t.type, t.status, t.created_at,
               fu.username as from_username, fu.role as from_role,
               tu.username as to_username, tu.role as to_role
        FROM transactions t

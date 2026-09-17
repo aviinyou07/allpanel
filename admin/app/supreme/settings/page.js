@@ -114,10 +114,27 @@ export default function SettingsPage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Dragon Payout Multiplier</label>
+              <input
+                type="number" step="0.1" value={settings.dragon_payout || ''} onChange={(e) => update('dragon_payout', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800"
+                placeholder="2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tiger Payout Multiplier</label>
+              <input
+                type="number" step="0.1" value={settings.tiger_payout || ''} onChange={(e) => update('tiger_payout', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800"
+                placeholder="2"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tie Payout Multiplier</label>
               <input
-                type="number" value={settings.tie_payout || ''} onChange={(e) => update('tie_payout', e.target.value)}
+                type="number" step="0.1" value={settings.tie_payout || ''} onChange={(e) => update('tie_payout', e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800"
+                placeholder="12"
               />
             </div>
           </div>
