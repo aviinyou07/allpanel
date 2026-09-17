@@ -9,7 +9,9 @@ RUN npm install
 # Copy application source
 COPY . .
 
-# Build Next.js application
+# Build Next.js application with backend URL
+ARG BACKEND_URL=http://backend:5000
+ENV BACKEND_URL=$BACKEND_URL
 ENV NODE_ENV=production
 RUN npm run build
 

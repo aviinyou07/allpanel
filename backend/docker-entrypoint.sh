@@ -41,3 +41,4 @@ npm run seed
 
 echo "🚀 Starting Allpanel8 Backend on port ${PORT:-5000}..."
 exec node src/server.js
+

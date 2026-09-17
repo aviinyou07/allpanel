@@ -2,7 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:5000';
+    const isProd = process.env.NODE_ENV === 'production';
+    const backendUrl = process.env.BACKEND_URL || (isProd ? 'http://backend:5000' : 'http://127.0.0.1:5000');
     return [
       {
         source: '/api/:path*',
