@@ -5,12 +5,12 @@ export const ROLES = {
   USER: 'USER',
 };
 
-// Strict hierarchy: who can create whom
-const CREATION_MAP = {
-  SUPREME: 'SUPER_ADMIN',
-  SUPER_ADMIN: 'MASTER',
-  MASTER: 'USER',
-  USER: null,
+// Role creation permissions
+export const CREATION_ROLES_MAP = {
+  SUPREME: ['SUPER_ADMIN', 'MASTER', 'USER'],
+  SUPER_ADMIN: ['MASTER', 'USER'],
+  MASTER: ['USER'],
+  USER: [],
 };
 
 // Role rank (higher number = higher authority)
@@ -21,13 +21,27 @@ const ROLE_RANK = {
   USER: 1,
 };
 
-export function canCreateRole(actorRole) {
-  return CREATION_MAP[actorRole] || null;
+export function getCreatableRoles(actorRole) {
+  return CREATION_ROLES_MAP[actorRole] || [];
+}
+
+export function canCreateRole(actorRole, targetRole) {
+  const allowed = CREATION_ROLES_MAP[actorRole] || [];
+  if (!targetRole) return allowed[0] || null;
+  return allowed.includes(targetRole);
 }
 
 export function canManageRole(actorRole, targetRole) {
-  const creatable = CREATION_MAP[actorRole];
-  return creatable === targetRole;
+  if (actorRole === ROLES.SUPREME) {
+    return [ROLES.SUPER_ADMIN, ROLES.MASTER, ROLES.USER].includes(targetRole);
+  }
+  if (actorRole === ROLES.SUPER_ADMIN) {
+    return [ROLES.MASTER, ROLES.USER].includes(targetRole);
+  }
+  if (actorRole === ROLES.MASTER) {
+    return targetRole === ROLES.USER;
+  }
+  return false;
 }
 
 export function getRoleRank(role) {

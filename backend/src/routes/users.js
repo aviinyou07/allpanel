@@ -1,7 +1,7 @@
 import express from 'express';
 import { getSessionFromReq, hashPassword } from '../lib/auth.js';
 import { query, queryOne, getConnection } from '../lib/db.js';
-import { canCreateRole, canManageRole } from '../lib/rbac.js';
+import { canCreateRole, canManageRole, getCreatableRoles } from '../lib/rbac.js';
 import { isInDownline } from '../lib/server-rbac.js';
 
 const router = express.Router();
@@ -25,21 +25,26 @@ router.get('/', async (req, res) => {
     let whereClause = 'WHERE u.deleted_at IS NULL';
     const params = [];
 
-    const manageableRole = canCreateRole(session.role);
+    const creatableRoles = getCreatableRoles(session.role);
     if (role) {
       if (!canManageRole(session.role, role)) {
         return res.status(403).json({ error: 'Unauthorized to view this role' });
       }
       whereClause += ' AND u.role = ?';
       params.push(role);
-    } else if (manageableRole) {
-      whereClause += ' AND u.role = ?';
-      params.push(manageableRole);
+    } else if (creatableRoles.length > 0 && session.role !== 'SUPREME') {
+      whereClause += ` AND u.role IN (${creatableRoles.map(() => '?').join(', ')})`;
+      params.push(...creatableRoles);
     }
 
     if (session.role !== 'SUPREME') {
-      whereClause += ' AND u.parent_id = ?';
-      params.push(session.id);
+      if (session.role === 'SUPER_ADMIN' && role === 'USER') {
+        whereClause += ' AND (u.parent_id = ? OR u.parent_id IN (SELECT id FROM users WHERE parent_id = ?))';
+        params.push(session.id, session.id);
+      } else {
+        whereClause += ' AND u.parent_id = ?';
+        params.push(session.id);
+      }
     }
 
     if (search) {
@@ -83,8 +88,7 @@ router.post('/', async (req, res) => {
 
     const { fullName, username, email, mobile, password, role, status, initialCredit } = req.body || {};
 
-    const allowedRole = canCreateRole(session.role);
-    if (!allowedRole || allowedRole !== role) {
+    if (!canCreateRole(session.role, role)) {
       return res.status(403).json({ error: `You cannot create ${role} accounts` });
     }
 

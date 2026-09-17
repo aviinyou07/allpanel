@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, UserPlus, Sparkles, Copy, Check, ShieldAlert } from 'lucide-react';
 
-export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole }) {
+export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole, allowedRoles }) {
+  const [currentRole, setCurrentRole] = useState(targetRole || (allowedRoles && allowedRoles[0]) || 'USER');
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
@@ -12,12 +13,20 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
     password: '',
     confirmPassword: '',
     status: 'ACTIVE',
-    initialCredit: targetRole === 'USER' ? 100 : 0,
+    initialCredit: 100,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createdCredentials, setCreatedCredentials] = useState(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (targetRole) {
+      setCurrentRole(targetRole);
+    } else if (allowedRoles && allowedRoles.length > 0) {
+      setCurrentRole(allowedRoles[0]);
+    }
+  }, [targetRole, allowedRoles]);
 
   if (!isOpen) return null;
 
@@ -73,9 +82,9 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
           email: formData.email,
           mobile: formData.mobile,
           password: formData.password,
-          role: targetRole,
+          role: currentRole,
           status: formData.status,
-          initialCredit: targetRole === 'USER' ? parseInt(formData.initialCredit || 0, 10) : 0,
+          initialCredit: currentRole === 'USER' ? parseInt(formData.initialCredit || 0, 10) : 0,
         }),
       });
 
@@ -88,7 +97,7 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
 
       onCreate?.(data);
 
-      if (targetRole === 'USER') {
+      if (currentRole === 'USER') {
         // Keep credentials in modal to show copy card
         setCreatedCredentials({
           username: formData.username,
@@ -123,7 +132,7 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
       password: '',
       confirmPassword: '',
       status: 'ACTIVE',
-      initialCredit: targetRole === 'USER' ? 100 : 0,
+      initialCredit: 100,
     });
     setError('');
     setCreatedCredentials(null);
@@ -139,7 +148,7 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
           <div className="flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-slate-800">
-              {createdCredentials ? 'Account Credentials Ready' : `Create ${roleLabels[targetRole] || targetRole}`}
+              {createdCredentials ? 'Account Credentials Ready' : `Create ${roleLabels[currentRole] || currentRole}`}
             </h3>
           </div>
           <button onClick={resetAndClose} className="text-slate-400 hover:text-slate-600">
@@ -206,7 +215,33 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
             )}
 
-            {targetRole === 'USER' && (
+            {/* Role Selector if actor has permission to create multiple roles */}
+            {allowedRoles && allowedRoles.length > 1 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Account Role *</label>
+                <select
+                  value={currentRole}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setCurrentRole(newRole);
+                    if (newRole === 'USER') {
+                      handleChange('initialCredit', 100);
+                    } else {
+                      handleChange('initialCredit', 0);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 bg-white font-semibold"
+                >
+                  {allowedRoles.map((r) => (
+                    <option key={r} value={r}>
+                      {roleLabels[r] || r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {currentRole === 'USER' && (
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -276,7 +311,7 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
               </div>
             </div>
 
-            {targetRole === 'USER' && (
+            {currentRole === 'USER' && (
               <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg">
                 <label className="block text-sm font-semibold text-blue-950 mb-1">Initial Token Deposit (₹)</label>
                 <div className="flex items-center gap-2">
@@ -303,7 +338,7 @@ export default function CreateUserModal({ isOpen, onClose, onCreate, targetRole 
                   </div>
                 </div>
                 <p className="text-[11px] text-blue-700 mt-1">
-                  Tokens will be credited directly from your Master wallet into the user ID.
+                  Tokens will be credited directly from your wallet into the user ID.
                 </p>
               </div>
             )}

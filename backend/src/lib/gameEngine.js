@@ -4,8 +4,11 @@ import { DemoGameProvider } from './game/DemoGameProvider.js';
 const provider = new DemoGameProvider();
 
 const BETTING_DURATION_SEC = 25;
-const REVEAL_DURATION_SEC = 6;
-const TOTAL_CYCLE_SEC = BETTING_DURATION_SEC + REVEAL_DURATION_SEC;
+const DEAL_PHASE_1_SEC = 4; // Dragon card reveals (0-4s of reveal)
+const DEAL_PHASE_2_SEC = 4; // Tiger card reveals (4-8s of reveal)
+const RESULT_HOLD_SEC = 2;  // Win announcement & wallet settle hold (8-10s of reveal)
+const REVEAL_DURATION_SEC = DEAL_PHASE_1_SEC + DEAL_PHASE_2_SEC + RESULT_HOLD_SEC; // 10s total
+const TOTAL_CYCLE_SEC = BETTING_DURATION_SEC + REVEAL_DURATION_SEC; // 35s total
 
 // In-memory idempotency cache for rapid-click duplicate protection
 const recentBetsCache = new Map();
@@ -49,7 +52,7 @@ export async function getCurrentRoundState() {
     elapsed = Math.floor((now - startedAtTime) / 1000);
   }
 
-  // Settle any older uncompleted rounds
+  // Settle any uncompleted rounds whose betting duration has ended
   try {
     const dangling = await query('SELECT * FROM game_rounds WHERE status = "BETTING_OPEN"');
     for (const old of dangling) {
@@ -64,6 +67,7 @@ export async function getCurrentRoundState() {
           old.dragon_card = roundData.dragonCard;
           old.tiger_card = roundData.tigerCard;
           old.result = roundData.result;
+          old.status = 'COMPLETED';
           await settleRoundBets(old, settings);
         }
       }
@@ -79,7 +83,7 @@ export async function getCurrentRoundState() {
     elapsed = Math.floor((now - startedAtTime) / 1000);
   }
 
-  // Need new round? Only when no round exists or full cycle (betting + reveal) has finished
+  // Need new round? When no round exists or full cycle (betting + 10s reveal & hold) has completed
   if (!round || elapsed >= totalCycle) {
     const datePrefix = new Date().toISOString().replace(/\D/g, '').slice(2, 14);
     const newRoundId = `116${datePrefix}${Math.floor(Math.random() * 90 + 10)}`;
@@ -93,25 +97,64 @@ export async function getCurrentRoundState() {
     elapsed = 0;
   }
 
-  const timeRemaining = round.status === 'BETTING_OPEN'
-    ? Math.max(0, bettingDuration - elapsed)
-    : 0;
+  const isBettingWindow = (elapsed < bettingDuration);
+  const timeRemaining = isBettingWindow ? Math.max(0, bettingDuration - elapsed) : 0;
+  const bettingOpen = (isBettingWindow && timeRemaining > 0);
+  const revealElapsed = isBettingWindow ? 0 : (elapsed - bettingDuration);
 
-  const bettingOpen = (round.status === 'BETTING_OPEN' && timeRemaining > 0);
+  // Determine stage and cards based on the 8s reveal + 2s hold
+  let phase = 'BETTING_OPEN';
+  let displayStatus = 'BETTING_OPEN';
+  let activeDragonCard = null;
+  let activeTigerCard = null;
+  let activeResult = null;
 
-  // Fetch last 10 completed results
-  const recentRounds = await query(
-    'SELECT round_id, result, dragon_card, tiger_card FROM game_rounds WHERE status = "COMPLETED" ORDER BY id DESC LIMIT 10'
-  );
+  if (isBettingWindow) {
+    phase = 'BETTING_OPEN';
+    displayStatus = 'BETTING_OPEN';
+  } else if (revealElapsed < DEAL_PHASE_1_SEC) {
+    // Seconds 0 to 4: First card (Dragon) revealed; Tiger card remains face down
+    phase = 'DRAGON_REVEAL';
+    displayStatus = 'DEALING';
+    activeDragonCard = round.dragon_card;
+  } else if (revealElapsed < (DEAL_PHASE_1_SEC + DEAL_PHASE_2_SEC)) {
+    // Seconds 4 to 8: Second card (Tiger) revealed; both visible
+    phase = 'TIGER_REVEAL';
+    displayStatus = 'DEALING';
+    activeDragonCard = round.dragon_card;
+    activeTigerCard = round.tiger_card;
+    activeResult = round.result;
+  } else {
+    // Seconds 8 to 10: 2-second hold celebration
+    phase = 'RESULT_HOLD';
+    displayStatus = 'COMPLETED';
+    activeDragonCard = round.dragon_card;
+    activeTigerCard = round.tiger_card;
+    activeResult = round.result;
+  }
+
+  // Fetch recent completed results for history ticker
+  // Don't show current round in history until both cards are revealed (RESULT_HOLD or later)
+  let historyQuery = 'SELECT round_id, result, dragon_card, tiger_card FROM game_rounds WHERE status = "COMPLETED"';
+  const historyParams = [];
+  if (round && phase !== 'RESULT_HOLD') {
+    historyQuery += ' AND id != ?';
+    historyParams.push(round.id);
+  }
+  historyQuery += ' ORDER BY id DESC LIMIT 10';
+
+  const recentRounds = await query(historyQuery, historyParams);
 
   return {
     roundId: round.round_id,
-    status: round.status,
+    status: displayStatus,
+    phase,
+    revealElapsed,
     timeRemaining,
     bettingOpen,
-    dragonCard: round.status === 'COMPLETED' ? round.dragon_card : null,
-    tigerCard: round.status === 'COMPLETED' ? round.tiger_card : null,
-    result: round.status === 'COMPLETED' ? round.result : null,
+    dragonCard: activeDragonCard,
+    tigerCard: activeTigerCard,
+    result: activeResult,
     history: recentRounds.map(r => ({
       roundId: r.round_id,
       result: r.result === 'DRAGON' ? 'D' : r.result === 'TIGER' ? 'T' : 'Tie',

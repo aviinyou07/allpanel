@@ -82,14 +82,14 @@ export default function AdminLayout({ children }) {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-[250px]">
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-[250px] overflow-x-hidden">
         <Header
           user={user}
           wallet={wallet}
           onMenuClick={() => setSidebarOpen(true)}
           onLogout={handleLogout}
         />
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 w-full max-w-7xl mx-auto">
           {children}
         </main>
       </div>

@@ -335,6 +335,7 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
   const [roundState, setRoundState] = useState({
     roundId: '---',
     status: 'BETTING_OPEN',
+    phase: 'BETTING_OPEN',
     timeRemaining: 25,
     bettingOpen: true,
     dragonCard: null,
@@ -347,13 +348,8 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
   const [betLoading, setBetLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [lastRoundNotice, setLastRoundNotice] = useState(null);
-  const [revealedDragon, setRevealedDragon] = useState(null);
-  const [revealedTiger, setRevealedTiger] = useState(null);
-  const prevRoundStatus = useRef(null);
+  const prevRoundPhase = useRef(null);
   const prevRoundId = useRef(null);
-  const revealTimerRef = useRef(null);
-  const revealTimerRef2 = useRef(null);
-  const noticeTimerRef = useRef(null);
   const betSlipRef = useRef(null);
   const amountInputRef = useRef(null);
 
@@ -369,28 +365,19 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
         const data = await res.json();
         setRoundState(data);
 
-        // When a new round begins (BETTING_OPEN)
-        if (data.status === 'BETTING_OPEN') {
-          if (prevRoundStatus.current === 'COMPLETED' || prevRoundId.current !== data.roundId) {
-            setRevealedDragon(null);
-            setRevealedTiger(null);
-            setLastRoundNotice(null);
-            if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-            if (revealTimerRef2.current) clearTimeout(revealTimerRef2.current);
-            if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-          }
+        // Close bet slip immediately if betting is closed
+        if (!data.bettingOpen) {
+          setBetSlip(null);
         }
 
-        // When round transitions to COMPLETED: Cards Dealing & Opening sequence
-        if (data.status === 'COMPLETED' && data.result) {
-          // Immediately close bet slip because betting is locked!
-          setBetSlip(null);
+        // When a new betting round starts, clear previous notice
+        if (data.status === 'BETTING_OPEN' && (prevRoundPhase.current === 'RESULT_HOLD' || prevRoundId.current !== data.roundId)) {
+          setLastRoundNotice(null);
+        }
 
-          if (prevRoundStatus.current === 'BETTING_OPEN') {
-            // Stage 0: Start with face-down cards while timer displays 00
-            setRevealedDragon(null);
-            setRevealedTiger(null);
-
+        // During RESULT_HOLD (or COMPLETED), settle wallet and show victory celebration
+        if ((data.phase === 'RESULT_HOLD' || data.status === 'COMPLETED') && data.result) {
+          if (prevRoundPhase.current !== 'RESULT_HOLD') {
             try {
               const wRes = await fetch('/api/wallet');
               if (wRes.ok) {
@@ -403,40 +390,23 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
               }
             } catch {}
 
-            // Stage 1: Reveal Dragon Card after 1.2s
-            revealTimerRef.current = setTimeout(() => {
-              setRevealedDragon(data.dragonCard);
-            }, 1200);
-
-            // Stage 2: Reveal Tiger Card after 2.5s
-            revealTimerRef2.current = setTimeout(() => {
-              setRevealedTiger(data.tigerCard);
-            }, 2500);
-
-            // Stage 3: Show victory announcement after 3.2s
-            noticeTimerRef.current = setTimeout(() => {
-              setLastRoundNotice({
-                winner: data.result,
-                dragonCard: data.dragonCard,
-                tigerCard: data.tigerCard,
-              });
-            }, 3200);
-          } else if (!revealedDragon && !revealedTiger) {
-            // If user enters during COMPLETED state
-            setRevealedDragon(data.dragonCard);
-            setRevealedTiger(data.tigerCard);
+            setLastRoundNotice({
+              winner: data.result,
+              dragonCard: data.dragonCard,
+              tigerCard: data.tigerCard,
+            });
           }
         }
 
-        prevRoundStatus.current = data.status;
+        prevRoundPhase.current = data.phase || data.status;
         prevRoundId.current = data.roundId;
       }
     } catch {}
-  }, [onWalletUpdate, revealedDragon, revealedTiger]);
+  }, [onWalletUpdate]);
 
   useEffect(() => {
     fetchRound();
-    const interval = setInterval(fetchRound, 1500);
+    const interval = setInterval(fetchRound, 1000);
     return () => clearInterval(interval);
   }, [fetchRound]);
 
@@ -535,7 +505,8 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
   const onesDigit = timeRemaining % 10;
 
   return (
-    <div className="w-full min-h-screen bg-[#f0f3f6] flex flex-col relative select-none animate-fadeIn text-slate-900 pb-16">
+    <div className="w-full min-h-screen bg-[#07131e] flex flex-col items-center select-none text-slate-900">
+      <div className="w-full max-w-full md:max-w-2xl lg:max-w-3xl min-h-screen bg-[#f0f3f6] flex flex-col relative shadow-[0_10px_40px_rgba(0,0,0,0.5)] border-x border-slate-700/30 pb-16">
       {/* Toast Banner */}
       {toastMessage && (
         <div className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all animate-bounce ${
@@ -763,26 +734,65 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
       )}
 
       {/* 5. Live Stream Card Table Area - EXACT MATCH TO ATTACHED SCREENSHOT */}
-      <div className="w-full aspect-[16/9] bg-black relative overflow-hidden select-none">
+      <div className="w-full h-[210px] sm:h-[250px] md:h-[290px] bg-black relative overflow-hidden select-none">
         {/* Top-Left: Two Cards (Dragon on left, Tiger on right) */}
         <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
-          <TableStreamCard cardStr={revealedDragon} />
-          <TableStreamCard cardStr={revealedTiger} />
+          <TableStreamCard cardStr={roundState.dragonCard} />
+          <TableStreamCard cardStr={roundState.tigerCard} />
+        </div>
+
+        {/* Status Badge in stream overlay */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+          {roundState.phase === 'DRAGON_REVEAL' && (
+            <span className="bg-amber-500 text-black text-[10px] sm:text-[11px] font-black px-2.5 py-0.5 rounded shadow animate-pulse">
+              DEALING: DRAGON CARD
+            </span>
+          )}
+          {roundState.phase === 'TIGER_REVEAL' && (
+            <span className="bg-amber-500 text-black text-[10px] sm:text-[11px] font-black px-2.5 py-0.5 rounded shadow animate-pulse">
+              DEALING: TIGER CARD
+            </span>
+          )}
+          {roundState.phase === 'RESULT_HOLD' && (
+            <span className="bg-emerald-500 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-0.5 rounded shadow animate-bounce">
+              ROUND SETTLED
+            </span>
+          )}
+          {roundState.bettingOpen && (
+            <span className="bg-[#1e8f82] text-white text-[10px] sm:text-[11px] font-black px-2.5 py-0.5 rounded shadow">
+              BETTING OPEN
+            </span>
+          )}
         </div>
 
         {/* Bottom-Right: Countdown Timer Badges */}
         <div className="absolute bottom-2 right-2 flex items-center gap-[3px] z-10">
-          <div className="w-[21px] h-[26px] sm:w-[23px] sm:h-[28px] rounded-[5px] bg-[#1e8f82] border-t border-[#3fc4b4]/50 shadow-[0_2px_4px_rgba(0,0,0,0.6)] text-white font-extrabold text-[16px] sm:text-[18px] flex items-center justify-center leading-none select-none tracking-tight">
-            {tensDigit}
-          </div>
-          <div className="w-[21px] h-[26px] sm:w-[23px] sm:h-[28px] rounded-[5px] bg-[#1e8f82] border-t border-[#3fc4b4]/50 shadow-[0_2px_4px_rgba(0,0,0,0.6)] text-white font-extrabold text-[16px] sm:text-[18px] flex items-center justify-center leading-none select-none tracking-tight">
-            {onesDigit}
-          </div>
+          {roundState.bettingOpen ? (
+            <>
+              <div className="w-[21px] h-[26px] sm:w-[23px] sm:h-[28px] rounded-[5px] bg-[#1e8f82] border-t border-[#3fc4b4]/50 shadow-[0_2px_4px_rgba(0,0,0,0.6)] text-white font-extrabold text-[16px] sm:text-[18px] flex items-center justify-center leading-none select-none tracking-tight">
+                {tensDigit}
+              </div>
+              <div className="w-[21px] h-[26px] sm:w-[23px] sm:h-[28px] rounded-[5px] bg-[#1e8f82] border-t border-[#3fc4b4]/50 shadow-[0_2px_4px_rgba(0,0,0,0.6)] text-white font-extrabold text-[16px] sm:text-[18px] flex items-center justify-center leading-none select-none tracking-tight">
+                {onesDigit}
+              </div>
+            </>
+          ) : (
+            <div className="bg-red-600/90 border border-red-400 text-white font-black text-[10px] sm:text-[11px] px-2 py-1 rounded shadow flex items-center gap-1">
+              <span>🔒 SUSPENDED</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 6. Main Betting Row (Dragon, Tie, Tiger, Pair) */}
-      <div className="w-full bg-white px-2 pt-1.5 pb-2 border-b border-slate-200">
+      <div className="w-full bg-white px-2 pt-1.5 pb-2 border-b border-slate-200 relative">
+        {!isBettingActive && (
+          <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-none">
+            <span className="bg-red-600 text-white font-black text-[12px] sm:text-[13px] px-3.5 py-1 rounded shadow-lg uppercase tracking-wider animate-pulse">
+              BETTING SUSPENDED
+            </span>
+          </div>
+        )}
         <div className="flex items-stretch gap-1">
           <div className="flex-1 flex flex-col">
             <div className="grid grid-cols-3 text-center font-black text-[13px] text-slate-900 pb-1">
@@ -1098,6 +1108,7 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
           <div className="w-10 h-[3px] bg-slate-300 rounded-full mx-auto mt-0.5"></div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
@@ -1264,10 +1275,22 @@ export default function Home() {
     handleLogin(null, 'user_a', 'User@123');
   };
 
+  if (isLoggedIn && activeGameView) {
+    return (
+      <DragonTigerScreen
+        onBack={() => setActiveGameView(false)}
+        user={user}
+        wallet={wallet}
+        onWalletUpdate={setWallet}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   return (
-    <main className="min-h-screen w-full bg-[#f0f2f5] flex justify-center items-start">
-      {/* 500px Mobile Screen Viewport */}
-      <div className="w-full max-w-[500px] min-h-screen bg-[#204867] flex flex-col relative shadow-[0_4px_35px_rgba(0,0,0,0.18)] overflow-hidden">
+    <main className="min-h-screen w-full bg-[#07131e] flex justify-center items-start">
+      {/* Responsive Viewport */}
+      <div className="w-full max-w-[500px] md:max-w-2xl lg:max-w-3xl min-h-screen bg-[#204867] flex flex-col relative shadow-[0_4px_35px_rgba(0,0,0,0.5)] overflow-hidden">
 
         {!isLoggedIn ? (
           /* ============================================================
@@ -1423,17 +1446,6 @@ export default function Home() {
               />
             </div>
           </div>
-        ) : activeGameView ? (
-          /* ============================================================
-             SCREEN 3: 20-20 DRAGON TIGER LIVE GAME TABLE (PURE CODE)
-             ============================================================ */
-          <DragonTigerScreen
-            onBack={() => setActiveGameView(false)}
-            user={user}
-            wallet={wallet}
-            onWalletUpdate={setWallet}
-            onLogout={handleLogout}
-          />
         ) : (
            /* ============================================================
              SCREEN 2: ALL Dashboard
@@ -1799,8 +1811,8 @@ export default function Home() {
             )}
 
             {/* 6. Casino & Games Section - Filtered to ONLY dt20.jpg on DRAGON TIGER */}
-            <div className="w-full bg-[#132738] p-1">
-              <div className={`grid gap-2 ${activeCasinoFilter === 'DRAGON TIGER' ? 'grid-cols-3' : 'grid-cols-4'}`}>
+            <div className="w-full bg-[#132738] p-1.5 sm:p-2">
+              <div className={`grid gap-2 sm:gap-2.5 ${activeCasinoFilter === 'DRAGON TIGER' ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6' : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-8'}`}>
                 {displayedGames.map((game, idx) => (
                   <div
                     key={idx}

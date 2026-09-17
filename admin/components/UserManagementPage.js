@@ -178,6 +178,7 @@ export default function UserManagementPage({ targetRole, title, createLabel }) {
         onClose={() => setShowCreate(false)}
         onCreate={() => { fetchData(); showToast(`${createLabel.replace('Create ', '')} created successfully`, 'success'); }}
         targetRole={targetRole}
+        allowedRoles={myRole === 'SUPREME' ? ['SUPER_ADMIN', 'MASTER', 'USER'] : (myRole === 'SUPER_ADMIN' ? ['MASTER', 'USER'] : [targetRole])}
       />
 
       <EditUserModal
