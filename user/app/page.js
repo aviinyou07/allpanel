@@ -54,22 +54,31 @@ const dragonTigerGames = [
   { title: '20-20 DRAGON TIGER', src: '/dt20.jpg', type: 'DRAGON TIGER' },
 ];
 
-function MiniCard({ rank, selected, onClick }) {
+function MiniCard({ rank, selected, locked, onClick }) {
   return (
     <button
       type="button"
+      disabled={locked}
       onClick={onClick}
-      className={`w-[26px] h-[36px] bg-white border-[1.5px] ${
-        selected ? 'border-[#3982b8] ring-2 ring-blue-400 bg-blue-50' : 'border-[#fbbf24]'
-      } rounded-[2px] flex flex-col items-center justify-between py-0.5 px-0.5 cursor-pointer hover:border-[#3982b8] active:scale-95 transition-all shadow-xs shrink-0 select-none`}
+      className={`w-[26px] h-[36px] bg-white border ${
+        selected ? 'border-[#3982b8] ring-2 ring-blue-400' : 'border-[#fbbf24]'
+      } rounded-[2px] p-0 cursor-pointer hover:opacity-95 active:scale-95 transition-all shadow-xs shrink-0 select-none relative overflow-hidden flex items-center justify-center`}
     >
-      <span className="text-[10.5px] font-black text-black leading-none">{rank}</span>
-      <div className="grid grid-cols-2 gap-x-[1px] gap-y-0 leading-none text-[7.5px]">
-        <span className="text-black font-serif">♠</span>
-        <span className="text-[#e53e3e] font-serif">♥</span>
-        <span className="text-black font-serif">♣</span>
-        <span className="text-[#e53e3e] font-serif">♦</span>
-      </div>
+      <Image
+        src={`/cards/mini/${rank}.png`}
+        alt={`Card ${rank}`}
+        width={64}
+        height={88}
+        unoptimized
+        className="w-full h-full object-fill block select-none pointer-events-none"
+      />
+      {locked && (
+        <div className="absolute inset-0 bg-black/65 flex items-center justify-center">
+          <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
+            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+          </svg>
+        </div>
+      )}
     </button>
   );
 }
@@ -253,43 +262,71 @@ function parseCard(cardStr) {
   return { rank, suit, isRed };
 }
 
+function getCardImageUrl(cardStr) {
+  if (!cardStr || typeof cardStr !== 'string') return '/card_back.png';
+  const suitChar = cardStr.slice(-1);
+  const rank = cardStr.slice(0, -1);
+  const suitMap = {
+    '♥': 'H', '♦': 'D', '♠': 'S', '♣': 'C',
+    'H': 'H', 'D': 'D', 'S': 'S', 'C': 'C',
+  };
+  const s = suitMap[suitChar] || 'H';
+  return `/cards/${rank}_${s}.png`;
+}
+
 function CasinoCard({ cardStr, side, isWinner }) {
-  const card = parseCard(cardStr);
-  if (!card) {
+  if (!cardStr) {
     return (
-      <div className="w-11 h-16 sm:w-12 sm:h-16 rounded-[4px] bg-gradient-to-b from-blue-700 to-blue-950 border border-white/70 shadow-md flex items-center justify-center">
-        <span className="font-['Bebas_Neue',sans-serif] text-[13px] text-amber-300 font-bold tracking-wider">ALL8</span>
+      <div className="w-11 h-16 sm:w-12 sm:h-16 rounded-[4px] overflow-hidden border border-[#fbbf24] shadow-md flex items-center justify-center bg-white">
+        <Image
+          src="/card_back.png"
+          alt="Card Back"
+          width={66}
+          height={80}
+          unoptimized
+          className="w-full h-full object-fill"
+        />
       </div>
     );
   }
 
-  const textColor = card.isRed ? 'text-[#e53e3e]' : 'text-slate-900';
   const winnerGlow = isWinner
     ? (side === 'DRAGON'
-        ? 'border-[#e53e3e] ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-105'
-        : 'border-[#3b82f6] ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-105')
-    : 'border-slate-300 shadow-md';
+        ? 'ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-105'
+        : 'ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-105')
+    : 'shadow-md';
 
   return (
     <div
-      className={`w-11 h-16 sm:w-12 sm:h-16 bg-white rounded-[4px] border-2 ${winnerGlow} flex flex-col justify-between p-1 select-none transition-all duration-300 transform relative`}
+      className={`w-11 h-16 sm:w-12 sm:h-16 bg-white rounded-[4px] border border-[#fbbf24] ${winnerGlow} select-none transition-all duration-300 transform overflow-hidden`}
     >
-      {/* Top-left rank & suit */}
-      <div className={`flex flex-col items-start leading-none ${textColor}`}>
-        <span className="text-[12px] font-black leading-none">{card.rank}</span>
-        <span className="text-[9px] leading-none mt-0.5">{card.suit}</span>
-      </div>
+      <Image
+        src={getCardImageUrl(cardStr)}
+        alt={cardStr}
+        width={66}
+        height={80}
+        unoptimized
+        className="w-full h-full object-fill"
+      />
+    </div>
+  );
+}
 
-      {/* Center Big Suit */}
-      <div className={`text-center ${textColor} text-[19px] font-black leading-none -my-1`}>
-        {card.suit}
-      </div>
+function TableStreamCard({ cardStr }) {
+  const isRevealed = Boolean(cardStr);
+  const imgSrc = isRevealed ? getCardImageUrl(cardStr) : '/card_back.png';
 
-      {/* Bottom-right inverted */}
-      <div className={`flex flex-col items-end leading-none rotate-180 ${textColor}`}>
-        <span className="text-[12px] font-black leading-none">{card.rank}</span>
-        <span className="text-[9px] leading-none mt-0.5">{card.suit}</span>
-      </div>
+  return (
+    <div className="w-[23px] h-[30px] sm:w-[26px] sm:h-[34px] rounded-[2px] overflow-hidden border border-[#fbbf24] shadow-sm shrink-0 select-none bg-white">
+      <Image
+        src={imgSrc}
+        alt={cardStr || 'Card Back'}
+        width={66}
+        height={80}
+        unoptimized
+        priority
+        className="w-full h-full object-fill block select-none pointer-events-none"
+      />
     </div>
   );
 }
@@ -305,12 +342,20 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
     result: null,
     history: [],
   });
-  const [selectedBet, setSelectedBet] = useState('Dragon');
-  const [selectedChip, setSelectedChip] = useState(50);
+  const [betSlip, setBetSlip] = useState(null); // { betType, odds, title }
+  const [betAmount, setBetAmount] = useState(100);
   const [betLoading, setBetLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [lastRoundNotice, setLastRoundNotice] = useState(null);
+  const [revealedDragon, setRevealedDragon] = useState(null);
+  const [revealedTiger, setRevealedTiger] = useState(null);
   const prevRoundStatus = useRef(null);
+  const prevRoundId = useRef(null);
+  const revealTimerRef = useRef(null);
+  const revealTimerRef2 = useRef(null);
+  const noticeTimerRef = useRef(null);
+  const betSlipRef = useRef(null);
+  const amountInputRef = useRef(null);
 
   const showToast = (text, type = 'info') => {
     setToastMessage({ text, type });
@@ -324,33 +369,70 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
         const data = await res.json();
         setRoundState(data);
 
-        // When round transitions to COMPLETED, refresh wallet and show win/loss alert
-        if (prevRoundStatus.current === 'BETTING_OPEN' && data.status === 'COMPLETED') {
-          try {
-            const wRes = await fetch('/api/wallet');
-            if (wRes.ok) {
-              const wData = await wRes.json();
-              onWalletUpdate?.({
-                balance: Number(wData.balance || 0),
-                exposure: Number(wData.exposure || 0),
-                available: Number(wData.available || 0),
-              });
-            }
-          } catch {}
-
-          if (data.result) {
-            setLastRoundNotice({
-              winner: data.result,
-              dragonCard: data.dragonCard,
-              tigerCard: data.tigerCard,
-            });
-            setTimeout(() => setLastRoundNotice(null), 5000);
+        // When a new round begins (BETTING_OPEN)
+        if (data.status === 'BETTING_OPEN') {
+          if (prevRoundStatus.current === 'COMPLETED' || prevRoundId.current !== data.roundId) {
+            setRevealedDragon(null);
+            setRevealedTiger(null);
+            setLastRoundNotice(null);
+            if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+            if (revealTimerRef2.current) clearTimeout(revealTimerRef2.current);
+            if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
           }
         }
+
+        // When round transitions to COMPLETED: Cards Dealing & Opening sequence
+        if (data.status === 'COMPLETED' && data.result) {
+          // Immediately close bet slip because betting is locked!
+          setBetSlip(null);
+
+          if (prevRoundStatus.current === 'BETTING_OPEN') {
+            // Stage 0: Start with face-down cards while timer displays 00
+            setRevealedDragon(null);
+            setRevealedTiger(null);
+
+            try {
+              const wRes = await fetch('/api/wallet');
+              if (wRes.ok) {
+                const wData = await wRes.json();
+                onWalletUpdate?.({
+                  balance: Number(wData.balance || 0),
+                  exposure: Number(wData.exposure || 0),
+                  available: Number(wData.available || 0),
+                });
+              }
+            } catch {}
+
+            // Stage 1: Reveal Dragon Card after 1.2s
+            revealTimerRef.current = setTimeout(() => {
+              setRevealedDragon(data.dragonCard);
+            }, 1200);
+
+            // Stage 2: Reveal Tiger Card after 2.5s
+            revealTimerRef2.current = setTimeout(() => {
+              setRevealedTiger(data.tigerCard);
+            }, 2500);
+
+            // Stage 3: Show victory announcement after 3.2s
+            noticeTimerRef.current = setTimeout(() => {
+              setLastRoundNotice({
+                winner: data.result,
+                dragonCard: data.dragonCard,
+                tigerCard: data.tigerCard,
+              });
+            }, 3200);
+          } else if (!revealedDragon && !revealedTiger) {
+            // If user enters during COMPLETED state
+            setRevealedDragon(data.dragonCard);
+            setRevealedTiger(data.tigerCard);
+          }
+        }
+
         prevRoundStatus.current = data.status;
+        prevRoundId.current = data.roundId;
       }
     } catch {}
-  }, [onWalletUpdate]);
+  }, [onWalletUpdate, revealedDragon, revealedTiger]);
 
   useEffect(() => {
     fetchRound();
@@ -358,9 +440,44 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
     return () => clearInterval(interval);
   }, [fetchRound]);
 
-  const handlePlaceBet = async (betType = selectedBet, amount = selectedChip) => {
-    if (!roundState.bettingOpen) {
+  // Smooth local 1-second countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRoundState((prev) => {
+        if (!prev || !prev.bettingOpen || prev.timeRemaining <= 0) return prev;
+        const nextTime = Math.max(0, prev.timeRemaining - 1);
+        if (nextTime === 0) {
+          setBetSlip(null); // Auto close bet slip when timer reaches 0
+        }
+        return {
+          ...prev,
+          timeRemaining: nextTime,
+          bettingOpen: nextTime > 0,
+        };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isBettingActive = Boolean(
+    roundState.bettingOpen &&
+    roundState.timeRemaining > 0 &&
+    roundState.status === 'BETTING_OPEN'
+  );
+
+  const handleOpenBetSlip = (betType, odds, title = betType) => {
+    if (!isBettingActive) return;
+    setBetSlip({ betType: betType.toUpperCase(), odds, title });
+    setBetAmount(prev => (prev > 0 ? prev : 100));
+    setTimeout(() => {
+      betSlipRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  };
+
+  const handlePlaceBet = async (betType, amount) => {
+    if (!isBettingActive) {
       showToast('Betting is closed for this round!', 'error');
+      setBetSlip(null);
       return;
     }
     const currentBal = wallet?.balance ?? 0;
@@ -399,6 +516,7 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
 
       showToast(`✅ Bet Placed: ₹${amount} on ${betType.toUpperCase()}! (Balance: ₹${data.balance}, EXP: ${data.exposure})`, 'success');
       setBetLoading(false);
+      setBetSlip(null);
     } catch {
       showToast('Network error placing bet', 'error');
       setBetLoading(false);
@@ -412,17 +530,12 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
     ? roundState.history.map(h => h.result)
     : ['D', 'T', 'T', 'T', 'T', 'D', 'T', 'T', 'T', 'D'];
 
-  const timeRemaining = roundState.timeRemaining || 0;
+  const timeRemaining = isBettingActive ? (roundState.timeRemaining || 0) : 0;
   const tensDigit = Math.floor(timeRemaining / 10);
   const onesDigit = timeRemaining % 10;
 
-  const latestHistory = roundState.history && roundState.history.length > 0 ? roundState.history[0] : null;
-  const activeDragonCard = roundState.dragonCard || latestHistory?.dragonCard || 'K♠';
-  const activeTigerCard = roundState.tigerCard || latestHistory?.tigerCard || '8♥';
-  const isRoundResolved = roundState.status === 'COMPLETED' && Boolean(roundState.result);
-
   return (
-    <div className="w-full min-h-screen bg-[#f0f3f6] flex flex-col relative select-none animate-fadeIn text-slate-900">
+    <div className="w-full min-h-screen bg-[#f0f3f6] flex flex-col relative select-none animate-fadeIn text-slate-900 pb-16">
       {/* Toast Banner */}
       {toastMessage && (
         <div className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all animate-bounce ${
@@ -434,13 +547,35 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
 
       {/* Round Settled Victory Notice */}
       {lastRoundNotice && (
-        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-amber-400 border-2 border-amber-500 text-black px-5 py-2.5 rounded-xl text-center shadow-2xl animate-scaleUp">
-          <p className="font-extrabold text-[13px] uppercase tracking-wider">
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#19354d] border-2 border-amber-400 text-white px-5 py-2.5 rounded-xl text-center shadow-2xl animate-scaleUp flex flex-col items-center">
+          <p className="font-extrabold text-[13px] uppercase tracking-wider text-amber-300">
             🎉 Round Result: {lastRoundNotice.winner} WON!
           </p>
-          <p className="text-[11px] font-semibold text-amber-950 mt-0.5">
-            Cards: Dragon {lastRoundNotice.dragonCard} vs Tiger {lastRoundNotice.tigerCard}
-          </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-[11px] font-bold text-slate-300">Dragon</span>
+            <div className="w-[22px] h-[28px] rounded-[2px] overflow-hidden border border-[#fbbf24] bg-white">
+              <Image
+                src={getCardImageUrl(lastRoundNotice.dragonCard)}
+                alt={lastRoundNotice.dragonCard || 'Dragon'}
+                width={66}
+                height={80}
+                unoptimized
+                className="w-full h-full object-fill"
+              />
+            </div>
+            <span className="text-[10px] text-slate-400 font-bold">vs</span>
+            <div className="w-[22px] h-[28px] rounded-[2px] overflow-hidden border border-[#fbbf24] bg-white">
+              <Image
+                src={getCardImageUrl(lastRoundNotice.tigerCard)}
+                alt={lastRoundNotice.tigerCard || 'Tiger'}
+                width={66}
+                height={80}
+                unoptimized
+                className="w-full h-full object-fill"
+              />
+            </div>
+            <span className="text-[11px] font-bold text-slate-300">Tiger</span>
+          </div>
         </div>
       )}
 
@@ -489,7 +624,7 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
           </svg>
         </div>
         <div className="italic text-slate-100 font-medium truncate tracking-tight text-[12px]">
-          Live 20-20 Dragon Tiger Exchange Table
+          Newly Launched Matka Market In Our Exchange
         </div>
       </div>
 
@@ -501,12 +636,12 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
         </button>
       </div>
 
-      {/* 4. Sub-bar 2: GAME | PLACED BET | Round ID */}
+      {/* 4. Sub-bar 2: GAME | PLACED BET (0) | Round ID */}
       <div className="bg-[#19354d] text-white px-3 py-1.5 flex items-center justify-between text-[11px] font-bold border-b border-black/30">
         <div className="flex items-center gap-1.5">
           <span className="tracking-wide">GAME</span>
           <span className="text-slate-500">|</span>
-          <span className="text-slate-200">EXP: {wallet?.exposure ?? 0}</span>
+          <span className="text-slate-200">PLACED BET (0)</span>
           <span className="text-slate-500">|</span>
         </div>
         <div className="text-slate-300 font-medium tracking-tight">
@@ -514,163 +649,205 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
         </div>
       </div>
 
-      {/* 5. Live Stream Card Table Area */}
-      <div className="w-full h-[210px] bg-[#0c1a24] relative flex flex-col justify-between overflow-hidden shadow-inner border-y border-black/40">
-        {/* Top bar in stream: Cards and Countdown */}
-        <div className="flex items-center justify-between p-3 z-10">
-          <div className="flex items-center gap-3">
-            {/* Dragon Card Slot */}
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black text-[#ff6b6b] uppercase tracking-wider mb-1">DRAGON</span>
-              <CasinoCard
-                cardStr={activeDragonCard}
-                side="DRAGON"
-                isWinner={isRoundResolved && roundState.result === 'DRAGON'}
-              />
-            </div>
-
-            {/* VS separator */}
-            <div className="flex flex-col items-center justify-center pt-3 px-0.5">
-              <span className="text-amber-400 font-black text-[13px] italic tracking-widest drop-shadow">VS</span>
-            </div>
-
-            {/* Tiger Card Slot */}
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black text-[#60a5fa] uppercase tracking-wider mb-1">TIGER</span>
-              <CasinoCard
-                cardStr={activeTigerCard}
-                side="TIGER"
-                isWinner={isRoundResolved && roundState.result === 'TIGER'}
-              />
-            </div>
-          </div>
-
-          {/* Center Announcement Banner if Completed */}
-          {roundState.status === 'COMPLETED' && roundState.result && (
-            <div className="px-3 py-1 rounded bg-amber-400 text-black font-extrabold text-[12px] tracking-wider uppercase shadow">
-              🏆 {roundState.result} WINS
-            </div>
-          )}
-
-          {/* Countdown timer */}
-          <div className="flex items-center gap-1">
-            <div className="w-7 h-8 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
-              {tensDigit}
-            </div>
-            <div className="w-7 h-8 bg-[#0c2233] border border-[#3982b8] rounded-[3px] text-[#5db5f5] font-mono font-black text-[16px] flex items-center justify-center shadow-xs">
-              {onesDigit}
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none"></div>
-
-        {/* Bottom Bar in video: Status indicator */}
-        <div className="flex items-center justify-between px-3 py-1.5 z-10 text-[11px] text-slate-200 font-semibold bg-black/60">
-          <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${roundState.bettingOpen ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`}></span>
-            <span>{roundState.bettingOpen ? 'Betting Open' : 'Betting Closed - Cards Dealing'}</span>
-          </div>
-          <span className="text-amber-300 font-mono">Min: ₹10</span>
-        </div>
-      </div>
-
-      {/* Chip Selector & Action Bar */}
-      <div className="bg-[#1e4e70] px-3 py-2 text-white flex items-center justify-between border-t border-b border-black/30">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10.5px] font-bold text-slate-300 uppercase">CHIP:</span>
-          {[10, 50, 100, 500, 1000].map(chip => (
-            <button
-              key={chip}
-              type="button"
-              onClick={() => setSelectedChip(chip)}
-              className={`w-7 h-7 rounded-full text-[10px] font-extrabold flex items-center justify-center transition-all cursor-pointer border ${
-                selectedChip === chip
-                  ? 'bg-amber-400 text-black border-white ring-2 ring-amber-300 scale-105 shadow font-black'
-                  : 'bg-[#296894] text-white border-blue-300/40 hover:bg-[#347ba8]'
-              }`}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          disabled={!roundState.bettingOpen || betLoading}
-          onClick={() => handlePlaceBet(selectedBet, selectedChip)}
-          className={`px-3 py-1.5 rounded-[3px] font-black text-[11.5px] uppercase tracking-wide transition-all shadow cursor-pointer ${
-            roundState.bettingOpen
-              ? 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white'
-              : 'bg-slate-600 text-slate-400 cursor-not-allowed'
-          }`}
+      {/* 4.5 Place Bet Slip - EXACT MATCH TO USER SCREENSHOT (Image 2) */}
+      {betSlip && isBettingActive && (
+        <div
+          ref={betSlipRef}
+          className="w-full max-w-[500px] mx-auto bg-[#82baeb] border-b-2 border-[#1e4e70] shadow-xl select-none animate-slideDown transition-all"
         >
-          {betLoading ? 'Placing...' : `Bet ₹${selectedChip} on ${selectedBet}`}
-        </button>
+          {/* Header bar */}
+          <div className="bg-[#0088cc] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[14px]">
+            <span className="font-extrabold tracking-wide">Place Bet</span>
+            <button
+              type="button"
+              onClick={() => setBetSlip(null)}
+              className="text-white hover:text-blue-200 text-[18px] leading-none font-bold cursor-pointer px-1"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Form body */}
+          <div className="p-3">
+            {/* Bet Title & Profit */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-black text-slate-900 text-[13.5px] uppercase tracking-wide">
+                {betSlip.title}
+              </span>
+              <div className="text-slate-800 font-bold text-[13px]">
+                Profit:{' '}
+                <span className="font-black text-slate-950">
+                  {Math.max(0, Math.floor((Number(betAmount) || 0) * (parseFloat(betSlip.odds || 1) - 1)))}
+                </span>
+              </div>
+            </div>
+
+            {/* Odds & Amount Inputs */}
+            <div className="grid grid-cols-2 gap-3 mb-2.5">
+              <div>
+                <label className="block text-slate-900 font-bold text-[11px] mb-0.5">Odds</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={betSlip.odds}
+                  className="w-full bg-white border border-[#6ea4cf] rounded-[2px] h-[32px] px-2 text-slate-900 font-black text-[13px] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-900 font-bold text-[11px] mb-0.5">Amount</label>
+                <input
+                  type="number"
+                  ref={amountInputRef}
+                  value={betAmount || ''}
+                  onChange={(e) => setBetAmount(Math.max(0, parseInt(e.target.value || '0', 10)))}
+                  placeholder="Amount"
+                  className="w-full bg-white border border-[#6ea4cf] rounded-[2px] h-[32px] px-2 text-slate-900 font-black text-[13px] outline-none focus:ring-1 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+
+            {/* Quick Add Chips (2 rows of 3 columns) */}
+            <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+              {[25, 50, 100, 200, 500, 1000].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setBetAmount((prev) => (Number(prev) || 0) + chip)}
+                  className="bg-[#1e4e70] hover:bg-[#163c57] active:scale-95 text-white font-extrabold text-[12px] py-1.5 rounded-[2px] cursor-pointer shadow-xs transition-all text-center"
+                >
+                  +{chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Action Buttons: Clear, Edit, Reset, Place Bet */}
+            <div className="grid grid-cols-4 gap-1.5 mb-2">
+              <button
+                type="button"
+                onClick={() => setBetAmount(0)}
+                className="bg-white/40 hover:bg-white/70 text-[#0066aa] font-bold text-[12px] py-1.5 rounded-[2px] cursor-pointer transition-all text-center"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => amountInputRef.current?.focus()}
+                className="bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold text-[12px] py-1.5 rounded-[2px] cursor-pointer transition-all text-center"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setBetAmount(100)}
+                className="bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold text-[12px] py-1.5 rounded-[2px] cursor-pointer transition-all text-center"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                disabled={betLoading || !isBettingActive || betAmount < 10}
+                onClick={() => handlePlaceBet(betSlip.betType, betAmount)}
+                className="bg-[#28a745] hover:bg-[#218838] active:scale-95 text-white font-black text-[12.5px] py-1.5 rounded-[2px] cursor-pointer transition-all text-center shadow disabled:opacity-50"
+              >
+                {betLoading ? 'Placing...' : 'Place Bet'}
+              </button>
+            </div>
+
+            {/* Footer info: Range */}
+            <div className="text-[11px] text-slate-800 font-semibold tracking-tight">
+              Range: 100 to 3L
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Live Stream Card Table Area - EXACT MATCH TO ATTACHED SCREENSHOT */}
+      <div className="w-full aspect-[16/9] bg-black relative overflow-hidden select-none">
+        {/* Top-Left: Two Cards (Dragon on left, Tiger on right) */}
+        <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
+          <TableStreamCard cardStr={revealedDragon} />
+          <TableStreamCard cardStr={revealedTiger} />
+        </div>
+
+        {/* Bottom-Right: Countdown Timer Badges */}
+        <div className="absolute bottom-2 right-2 flex items-center gap-[3px] z-10">
+          <div className="w-[21px] h-[26px] sm:w-[23px] sm:h-[28px] rounded-[5px] bg-[#1e8f82] border-t border-[#3fc4b4]/50 shadow-[0_2px_4px_rgba(0,0,0,0.6)] text-white font-extrabold text-[16px] sm:text-[18px] flex items-center justify-center leading-none select-none tracking-tight">
+            {tensDigit}
+          </div>
+          <div className="w-[21px] h-[26px] sm:w-[23px] sm:h-[28px] rounded-[5px] bg-[#1e8f82] border-t border-[#3fc4b4]/50 shadow-[0_2px_4px_rgba(0,0,0,0.6)] text-white font-extrabold text-[16px] sm:text-[18px] flex items-center justify-center leading-none select-none tracking-tight">
+            {onesDigit}
+          </div>
+        </div>
       </div>
 
       {/* 6. Main Betting Row (Dragon, Tie, Tiger, Pair) */}
-      <div className="w-full bg-white px-2 pt-1.5 pb-2.5 border-b border-slate-200">
+      <div className="w-full bg-white px-2 pt-1.5 pb-2 border-b border-slate-200">
         <div className="flex items-stretch gap-1">
           <div className="flex-1 flex flex-col">
             <div className="grid grid-cols-3 text-center font-black text-[13px] text-slate-900 pb-1">
-              <div>2.0</div>
-              <div>12.0</div>
-              <div>2.0</div>
+              <div>{isBettingActive ? '2' : '0'}</div>
+              <div>{isBettingActive ? '50' : '0'}</div>
+              <div>{isBettingActive ? '2' : '0'}</div>
             </div>
             <div className="grid grid-cols-3 gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedBet('Dragon')}
-                className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
-                  selectedBet === 'Dragon'
-                    ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
-                    : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-                }`}
-              >
-                Dragon
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedBet('Tie')}
-                className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
-                  selectedBet === 'Tie'
-                    ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
-                    : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-                }`}
-              >
-                Tie
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedBet('Tiger')}
-                className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
-                  selectedBet === 'Tiger'
-                    ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
-                    : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-                }`}
-              >
-                Tiger
-              </button>
+              {[
+                { name: 'Dragon', odds: '2' },
+                { name: 'Tie', odds: '50' },
+                { name: 'Tiger', odds: '2' },
+              ].map((bet) => (
+                <button
+                  key={bet.name}
+                  type="button"
+                  disabled={!isBettingActive}
+                  onClick={() => handleOpenBetSlip(bet.name, bet.odds)}
+                  className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs transition-all flex items-center justify-center ${
+                    !isBettingActive
+                      ? 'bg-[#273843] text-slate-400 cursor-not-allowed'
+                      : betSlip?.betType === bet.name.toUpperCase()
+                      ? 'bg-[#247c73] ring-2 ring-teal-400 scale-[1.02] cursor-pointer'
+                      : 'bg-[#207068] hover:bg-[#1b615a] active:scale-95 cursor-pointer'
+                  }`}
+                >
+                  {isBettingActive ? bet.name : (
+                    <span className="flex items-center justify-center gap-1">
+                      <span className="opacity-40 text-[13px]">{bet.name}</span>
+                      <svg className="w-3.5 h-3.5 fill-white shrink-0" viewBox="0 0 24 24">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="w-[2px] bg-[#3982b8] mx-0.5 rounded-full my-1"></div>
+          <div className="w-[2px] bg-[#207068]/30 mx-0.5 rounded-full my-1"></div>
 
           <div className="w-[84px] flex flex-col">
             <div className="text-center font-black text-[13px] text-slate-900 pb-1">
-              12
+              {isBettingActive ? '12' : '0'}
             </div>
             <button
               type="button"
-              onClick={() => setSelectedBet('Pair')}
-              className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs cursor-pointer transition-all ${
-                selectedBet === 'Pair'
-                  ? 'bg-[#3982b8] ring-2 ring-blue-300 scale-[1.02]'
-                  : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
+              disabled={!isBettingActive}
+              onClick={() => handleOpenBetSlip('Pair', '12')}
+              className={`py-2 rounded-[2px] font-extrabold text-[14px] text-white shadow-xs transition-all flex items-center justify-center ${
+                !isBettingActive
+                  ? 'bg-[#273843] text-slate-400 cursor-not-allowed'
+                  : betSlip?.betType === 'PAIR'
+                  ? 'bg-[#247c73] ring-2 ring-teal-400 scale-[1.02] cursor-pointer'
+                  : 'bg-[#207068] hover:bg-[#1b615a] active:scale-95 cursor-pointer'
               }`}
             >
-              Pair
+              {isBettingActive ? 'Pair' : (
+                <span className="flex items-center justify-center gap-1">
+                  <span className="opacity-40 text-[13px]">Pair</span>
+                  <svg className="w-3.5 h-3.5 fill-white shrink-0" viewBox="0 0 24 24">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                  </svg>
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -682,58 +859,46 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
           DRAGON
         </div>
         <div className="grid grid-cols-4 text-center font-bold text-[12.5px] text-slate-800 pb-1">
-          <div>2.1</div>
-          <div>1.79</div>
-          <div>1.95</div>
-          <div>1.95</div>
+          <div>{isBettingActive ? '2.1' : '0'}</div>
+          <div>{isBettingActive ? '1.79' : '0'}</div>
+          <div>{isBettingActive ? '1.95' : '0'}</div>
+          <div>{isBettingActive ? '1.95' : '0'}</div>
         </div>
         <div className="grid grid-cols-4 gap-1">
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Dragon-Even')}
-            className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
-              selectedBet === 'Dragon-Even'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            Even
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Dragon-Odd')}
-            className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
-              selectedBet === 'Dragon-Odd'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            Odd
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Dragon-Red')}
-            className={`py-2 rounded-[2px] font-extrabold text-[15px] text-[#e74c3c] shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
-              selectedBet === 'Dragon-Red'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            <span>♥</span>
-            <span>♦</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Dragon-Black')}
-            className={`py-2 rounded-[2px] font-extrabold text-[15px] text-black shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
-              selectedBet === 'Dragon-Black'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            <span>♠</span>
-            <span>♣</span>
-          </button>
+          {[
+            { id: 'Dragon-Even', label: 'Even', odds: '2.1' },
+            { id: 'Dragon-Odd', label: 'Odd', odds: '1.79' },
+            { id: 'Dragon-Red', label: '♥ ♦', isRed: true, odds: '1.95' },
+            { id: 'Dragon-Black', label: '♠ ♣', odds: '1.95' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={!isBettingActive}
+              onClick={() => handleOpenBetSlip(item.id, item.odds, item.label)}
+              className={`py-2 rounded-[2px] font-extrabold text-[13.5px] shadow-xs transition-all flex items-center justify-center ${
+                !isBettingActive
+                  ? 'bg-[#273843] text-slate-400 cursor-not-allowed'
+                  : betSlip?.betType === item.id.toUpperCase()
+                  ? 'bg-[#247c73] ring-2 ring-teal-400 text-white cursor-pointer'
+                  : 'bg-[#207068] hover:bg-[#1b615a] text-white active:scale-95 cursor-pointer'
+              }`}
+            >
+              {isBettingActive ? (
+                item.isRed ? (
+                  <span className="text-[#ff7b7b] text-[15px] flex items-center gap-1">
+                    <span>♥</span><span>♦</span>
+                  </span>
+                ) : (
+                  <span>{item.label}</span>
+                )
+              ) : (
+                <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                </svg>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -743,65 +908,53 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
           TIGER
         </div>
         <div className="grid grid-cols-4 text-center font-bold text-[12.5px] text-slate-800 pb-1">
-          <div>2.1</div>
-          <div>1.79</div>
-          <div>1.95</div>
-          <div>1.95</div>
+          <div>{isBettingActive ? '2.1' : '0'}</div>
+          <div>{isBettingActive ? '1.79' : '0'}</div>
+          <div>{isBettingActive ? '1.95' : '0'}</div>
+          <div>{isBettingActive ? '1.95' : '0'}</div>
         </div>
         <div className="grid grid-cols-4 gap-1">
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Tiger-Even')}
-            className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
-              selectedBet === 'Tiger-Even'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            Even
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Tiger-Odd')}
-            className={`py-2 rounded-[2px] font-extrabold text-[13.5px] text-white shadow-xs cursor-pointer transition-all ${
-              selectedBet === 'Tiger-Odd'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            Odd
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Tiger-Red')}
-            className={`py-2 rounded-[2px] font-extrabold text-[15px] text-[#e74c3c] shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
-              selectedBet === 'Tiger-Red'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            <span>♥</span>
-            <span>♦</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedBet('Tiger-Black')}
-            className={`py-2 rounded-[2px] font-extrabold text-[15px] text-black shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1 ${
-              selectedBet === 'Tiger-Black'
-                ? 'bg-[#3982b8] ring-2 ring-blue-300'
-                : 'bg-gradient-to-b from-[#2b6590] to-[#1e496a] hover:brightness-110 active:scale-95'
-            }`}
-          >
-            <span>♠</span>
-            <span>♣</span>
-          </button>
+          {[
+            { id: 'Tiger-Even', label: 'Even', odds: '2.1' },
+            { id: 'Tiger-Odd', label: 'Odd', odds: '1.79' },
+            { id: 'Tiger-Red', label: '♥ ♦', isRed: true, odds: '1.95' },
+            { id: 'Tiger-Black', label: '♠ ♣', odds: '1.95' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={!isBettingActive}
+              onClick={() => handleOpenBetSlip(item.id, item.odds, item.label)}
+              className={`py-2 rounded-[2px] font-extrabold text-[13.5px] shadow-xs transition-all flex items-center justify-center ${
+                !isBettingActive
+                  ? 'bg-[#273843] text-slate-400 cursor-not-allowed'
+                  : betSlip?.betType === item.id.toUpperCase()
+                  ? 'bg-[#247c73] ring-2 ring-teal-400 text-white cursor-pointer'
+                  : 'bg-[#207068] hover:bg-[#1b615a] text-white active:scale-95 cursor-pointer'
+              }`}
+            >
+              {isBettingActive ? (
+                item.isRed ? (
+                  <span className="text-[#ff7b7b] text-[15px] flex items-center gap-1">
+                    <span>♥</span><span>♦</span>
+                  </span>
+                ) : (
+                  <span>{item.label}</span>
+                )
+              ) : (
+                <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                </svg>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* 9. DRAGON 12 Cards Box */}
       <div className="bg-white border border-slate-300 rounded-[2px] p-2.5 mx-2 my-2 shadow-xs">
         <div className="text-center font-extrabold text-[13px] text-slate-800 uppercase tracking-wide mb-2">
-          DRAGON 12
+          {isBettingActive ? 'DRAGON 12' : 'DRAGON 0'}
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center justify-center gap-1 flex-wrap">
@@ -809,8 +962,9 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
               <MiniCard
                 key={rank}
                 rank={rank}
-                selected={selectedBet === `Dragon12-${rank}`}
-                onClick={() => setSelectedBet(`Dragon12-${rank}`)}
+                locked={!isBettingActive}
+                selected={betSlip?.betType === `DRAGON12-${rank}`}
+                onClick={() => handleOpenBetSlip(`Dragon12-${rank}`, '12', `Dragon ${rank}`)}
               />
             ))}
           </div>
@@ -819,8 +973,9 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
               <MiniCard
                 key={rank}
                 rank={rank}
-                selected={selectedBet === `Dragon12-${rank}`}
-                onClick={() => setSelectedBet(`Dragon12-${rank}`)}
+                locked={!isBettingActive}
+                selected={betSlip?.betType === `DRAGON12-${rank}`}
+                onClick={() => handleOpenBetSlip(`Dragon12-${rank}`, '12', `Dragon ${rank}`)}
               />
             ))}
           </div>
@@ -830,7 +985,7 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
       {/* 10. TIGER 12 Cards Box */}
       <div className="bg-white border border-slate-300 rounded-[2px] p-2.5 mx-2 my-1 shadow-xs">
         <div className="text-center font-extrabold text-[13px] text-slate-800 uppercase tracking-wide mb-2">
-          TIGER 12
+          {isBettingActive ? 'TIGER 12' : 'TIGER 0'}
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center justify-center gap-1 flex-wrap">
@@ -838,8 +993,9 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
               <MiniCard
                 key={rank}
                 rank={rank}
-                selected={selectedBet === `Tiger12-${rank}`}
-                onClick={() => setSelectedBet(`Tiger12-${rank}`)}
+                locked={!isBettingActive}
+                selected={betSlip?.betType === `TIGER12-${rank}`}
+                onClick={() => handleOpenBetSlip(`Tiger12-${rank}`, '12', `Tiger ${rank}`)}
               />
             ))}
           </div>
@@ -848,8 +1004,9 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
               <MiniCard
                 key={rank}
                 rank={rank}
-                selected={selectedBet === `Tiger12-${rank}`}
-                onClick={() => setSelectedBet(`Tiger12-${rank}`)}
+                locked={!isBettingActive}
+                selected={betSlip?.betType === `TIGER12-${rank}`}
+                onClick={() => handleOpenBetSlip(`Tiger12-${rank}`, '12', `Tiger ${rank}`)}
               />
             ))}
           </div>
@@ -858,23 +1015,32 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
 
       {/* 11. Last Result Bar */}
       <div className="w-full mt-2">
-        <div className="bg-[#3982b8] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[12.5px]">
+        <div className="bg-[#4aaca0] text-white px-3 py-1.5 flex items-center justify-between font-bold text-[12.5px]">
           <span className="tracking-wide">Last Result</span>
-          <button type="button" className="underline cursor-pointer hover:text-blue-100 font-medium text-[11.5px]">
+          <button type="button" className="underline cursor-pointer hover:text-teal-100 font-medium text-[11.5px]">
             View All
           </button>
         </div>
         <div className="bg-white px-3 py-2 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-200">
-          {lastResults.map((res, rIdx) => (
-            <div
-              key={rIdx}
-              className={`w-6 h-6 rounded-full font-black text-[12px] text-white flex items-center justify-center shadow-xs shrink-0 ${
-                res === 'D' || res === 'DRAGON' ? 'bg-[#c0392b]' : res === 'T' || res === 'TIGER' ? 'bg-[#2980b9]' : 'bg-emerald-600'
-              }`}
-            >
-              {res ? String(res)[0] : '-'}
-            </div>
-          ))}
+          {lastResults.map((res, rIdx) => {
+            const letter = res ? String(res)[0].toUpperCase() : '-';
+            const isD = letter === 'D';
+            const isT = letter === 'T';
+            return (
+              <div
+                key={rIdx}
+                className={`w-6 h-6 rounded-full font-black text-[12px] text-white flex items-center justify-center shadow-xs shrink-0 ${
+                  isD
+                    ? 'bg-[#1f5f38]'
+                    : isT
+                    ? 'bg-[#355e3b]'
+                    : 'bg-[#d97706]'
+                }`}
+              >
+                {letter}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -926,13 +1092,16 @@ function DragonTigerScreen({ onBack, user, wallet, onWalletUpdate, onLogout }) {
           </div>
 
           <p className="text-[11px] font-medium text-slate-900 text-center tracking-tight leading-tight">
-            © Copyright 2026. All Rights Reserved. Powered by Allpanel8.
+            © Copyright 2026. All Rights Reserved. Powered by ALLPANEL8.
           </p>
+
+          <div className="w-10 h-[3px] bg-slate-300 rounded-full mx-auto mt-0.5"></div>
         </div>
       </footer>
     </div>
   );
 }
+
 
 export default function Home() {
   const [user, setUser] = useState(null);
