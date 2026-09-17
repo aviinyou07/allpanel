@@ -96,11 +96,11 @@ router.post('/login', async (req, res) => {
     } catch {}
 
     const maxAge = (rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 24) * 1000;
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isSecureCookie = process.env.COOKIE_SECURE === 'true';
 
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,
+      secure: isSecureCookie,
       sameSite: 'lax',
       maxAge,
       path: '/',

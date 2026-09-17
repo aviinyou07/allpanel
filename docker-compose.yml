@@ -1,0 +1,89 @@
+
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: allpanel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-allpanel8_db_pass}
+      MYSQL_DATABASE: ${DB_NAME:-dragon_tiger_admin}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    networks:
+      - allpanel-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: allpanel-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-allpanel8_db_pass}
+      DB_NAME: ${DB_NAME:-dragon_tiger_admin}
+      JWT_SECRET: ${JWT_SECRET:-allpanel8_jwt_secret_change_me_in_production}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    networks:
+      - allpanel-net
+
+  user:
+    build:
+      context: ./user
+      dockerfile: Dockerfile
+    container_name: allpanel-user
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "${USER_PORT:-3000}:3000"
+    networks:
+      - allpanel-net
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: allpanel-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOSTNAME: "0.0.0.0"
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "${ADMIN_PORT:-3001}:3001"
+    networks:
+      - allpanel-net
+
+volumes:
+  mysql_data:
+    name: allpanel_mysql_data
+
+networks:
+  allpanel-net:
+    name: allpanel_net
+    driver: bridge
